@@ -1,5 +1,6 @@
-//generate data to be plotted, by selecting datapoints nearest to the fit vertex
-void getPlotDataNearMin(const data * d, const parameters * p, const fit_results * fr, plot_data * pd)
+//generate data to be plotted
+//for multidimensional paraboloid fits, do this by by selecting datapoints nearest to the fit vertex
+void preparePlotData(const data * d, const parameters * p, const fit_results * fr, plot_data * pd)
 {
   int i,j,k;
   long double minDist,mdv;
@@ -16,8 +17,7 @@ void getPlotDataNearMin(const data * d, const parameters * p, const fit_results 
               pd->fixedParVal[i]=d->x[i][j];
             }
         }
-    }
-    
+    }  
   
   //generate plot data
   int useDataPoint=0;
@@ -62,6 +62,19 @@ void getPlotDataNearMin(const data * d, const parameters * p, const fit_results 
       memset(pd->plotDataSize,0,sizeof(pd->plotDataSize));
       for(i=0;i<d->lines;i++)
         {
+          //copy over data to plot
+          for(j=0;j<=p->numVar;j++)//parameter index (x,y,z,value)
+            pd->data[0][j][pd->plotDataSize[0]]=((double)d->x[j][i]);
+          pd->plotDataSize[0]++;
+        }
+    }
+  else if((p->numVar==3)&&(strcmp(p->plotMode,"3d")==0))
+    {
+      pd->numPlots=1;
+      memset(pd->plotDataSize,0,sizeof(pd->plotDataSize));
+      for(i=0;i<d->lines;i++)
+        {
+          //copy over data to plot
           for(j=0;j<=p->numVar;j++)//parameter index (x,y,z,value)
             pd->data[0][j][pd->plotDataSize[0]]=((double)d->x[j][i]);
           pd->plotDataSize[0]++;
@@ -69,28 +82,38 @@ void getPlotDataNearMin(const data * d, const parameters * p, const fit_results 
     }
   else if (p->plotData!=0)
     {
-      printf("ERROR: Plotting mode '%s' is not availiable for this data!\n",p->plotMode);
+      printf("ERROR: Plotting mode '%s' is not availiable for the fit type used (%s).\n",p->plotMode,p->fitType);
+      if(p->numVar==1)
+        printf("Available plot modes: 1d.\n");
+      else if(p->numVar==2)
+        printf("Available plot modes: 1d, 2d.\n");
+      else if(p->numVar==3)
+        printf("Available plot modes: 1d, 2d, 3d.\n");
+      else
+        printf("No plot modes available for this fit type.\n");
       exit(-1);
     }
 
-}
-
-void plotData(const data * d, const parameters * p, const fit_results * fr, plot_data * pd)
-{
-  int i,j,k;
-  char str[256];
-  plotOpen=1; 
-  handle=gnuplot_init();
-  
   //determine whether or not to use scientific notation for labels
   for(i=0;i<pd->numPlots;i++)
     for(j=0;j<p->numVar;j++)
       for(k=0;k<pd->plotDataSize[i];k++)
-        if(pd->data[i][j][k]<0.001)
-          {
-            pd->axisLabelStyle[i][j]=1;
-            break;
-          }
+        if((abs(pd->data[i][j][k])<0.001)&&(pd->data[i][j][k]!=0.))
+          pd->axisLabelStyle[i][j]=1;
+        else
+        	{
+        		pd->axisLabelStyle[i][j]=0;
+        		break;//if any data point is not small, use regular labels
+        	}
+
+}
+
+void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
+{
+  int i;
+  char * str=(char*)calloc(256,sizeof(char));
+  plotOpen=1; 
+  handle=gnuplot_init();
     
   printf("\nDATA PLOTS\n----------\nUse 'l' in the plotting window to switch between linear and logarithmic scale.\n");
   
@@ -99,7 +122,10 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
       for(i=0;i<p->numVar;i++)
         {
           gnuplot_setstyle(handle,"points"); //set style for grid points
-          gnuplot_cmd(handle,"set ylabel 'Value'");
+          if(strcmp(p->dataType,"chisq")==0)
+            gnuplot_cmd(handle,"set ylabel 'Chisq'");
+          else  
+            gnuplot_cmd(handle,"set ylabel 'Value'");
           sprintf(str,"set xlabel 'Parameter %i'",i+1);
           gnuplot_cmd(handle,str);
           gnuplot_plot_xy(handle, pd->data[i][i], pd->data[i][p->numVar], pd->plotDataSize[i], "Data");
@@ -109,27 +135,17 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
             gnuplot_cmd(handle,"set format y '%%12.2E'");
           gnuplot_setstyle(handle,"lines");//set style for fit data
           //generate fit data functional forms
-          if(p->numVar==3)
-            {
-              if(i==0)
-                sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x*%Lf + %Lf*%Lf*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[1],pd->fixedParVal[2],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],pd->fixedParVal[2],fr->a[9]);
-              else if(i==1)
-                sprintf(str, "%Lf*(%Lf**2) + %Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*%Lf*%Lf + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[7],fr->a[6],pd->fixedParVal[0],fr->a[8],pd->fixedParVal[2],fr->a[9]);
-              else if(i==2)
-                sprintf(str, "%Lf*(%Lf**2) + %Lf*(%Lf**2) + %Lf*(x**2) + %Lf*%Lf*%Lf + %Lf*x*%Lf + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[0],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[0],fr->a[5],pd->fixedParVal[1],fr->a[8],fr->a[6],pd->fixedParVal[0],fr->a[7],pd->fixedParVal[1],fr->a[9]);
-            }
-          else if(p->numVar==2)
-            {
-              if(i==0)
-                sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[1],fr->a[3],fr->a[4],pd->fixedParVal[1],fr->a[5]);
-              else if(i==1)
-                sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[1],fr->a[0],pd->fixedParVal[0],fr->a[2],pd->fixedParVal[0],fr->a[4],fr->a[3],pd->fixedParVal[0],fr->a[5]);
-            }
-          else if(p->numVar==1)
-            {
-              sprintf(str, "%Lf*(x**2) + %Lf*x + %Lf",fr->a[0],fr->a[1],fr->a[2]);
-            }
-          gnuplot_plot_equation(handle, str, "Fit");       
+          if(strcmp(p->fitType,"par3")==0)
+            str=plotForm3Par(p,fr,pd,i);
+          else if(strcmp(p->fitType,"par2")==0)
+            str=plotForm2Par(p,fr,pd,i);
+          else if(strcmp(p->fitType,"par1")==0)
+            str=plotForm1Par(p,fr,pd,i);
+          else if(strcmp(p->fitType,"lin")==0)
+            str=plotFormLin(p,fr,pd,i);
+          else if(strcmp(p->fitType,"poly3")==0)
+            str=plotFormPoly3(p,fr,pd,i);
+          gnuplot_plot_equation(handle, str, "Fit");
           printf("Showing plot for parameter %i.\n",i+1);
           if(p->numVar==3)
             {
@@ -172,7 +188,7 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
                     gnuplot_cmd(handle,"set format y '%%12.2E'");
                   if(pd->axisLabelStyle[i][p->numVar]==1)
                     gnuplot_cmd(handle,"set format z '%%12.2E'");
-                  sprintf(str,"set xlabel 'Parameter 2'; set ylabel 'Parameter 3'; set zlabel 'Value'");
+                  sprintf(str,"set xlabel 'Parameter 2'; set ylabel 'Parameter 3'");
                 }
               if(i==1)
                 {
@@ -183,7 +199,7 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
                     gnuplot_cmd(handle,"set format y '%%12.2E'");
                   if(pd->axisLabelStyle[i][p->numVar]==1)
                     gnuplot_cmd(handle,"set format z '%%12.2E'");
-                  sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 3'; set zlabel 'Value'");
+                  sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 3'");
                 }
               if(i==2)
                 {
@@ -194,18 +210,18 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
                     gnuplot_cmd(handle,"set format y '%%12.2E'");
                   if(pd->axisLabelStyle[i][p->numVar]==1)
                     gnuplot_cmd(handle,"set format z '%%12.2E'");
-                  sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 2'; set zlabel 'Value'");
+                  sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 2'");
                 }
+              if(strcmp(p->dataType,"chisq")==0)
+                gnuplot_cmd(handle,"set zlabel 'Chisq'");
+              else  
+                gnuplot_cmd(handle,"set zlabel 'Value'");
               gnuplot_cmd(handle,str);
               gnuplot_setstyle(handle,"lines");
               gnuplot_cmd(handle,"set grid");//set style for fit data
               //generate fit data functional forms
-              if(i==0)//x=par[1],y=par[2]
-                sprintf(str, "%Lf*(%Lf**2) + %Lf*(x**2) + %Lf*(y**2) + %Lf*%Lf*x + %Lf*%Lf*y + %Lf*x*y + %Lf*%Lf + %Lf*x + %Lf*y + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],fr->a[5],fr->a[6],pd->fixedParVal[0],fr->a[7],fr->a[8],fr->a[9]);
-              else if(i==1)//x=par[0],y=par[2]
-                sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*(y**2) + %Lf*x*%Lf + %Lf*x*y + %Lf*%Lf*y + %Lf*x + %Lf*%Lf + %Lf*y + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[1],fr->a[4],fr->a[5],pd->fixedParVal[1],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],fr->a[9]);
-              else if(i==2)//x=par[0],y=par[1]
-                sprintf(str, "%Lf*(x**2) + %Lf*(y**2) + %Lf*(%Lf**2) + %Lf*x*y + %Lf*x*%Lf + %Lf*y*%Lf + %Lf*x + %Lf*y + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[6],fr->a[7],fr->a[8],pd->fixedParVal[2],fr->a[9]);
+              if(strcmp(p->fitType,"par3")==0)
+                str=plotForm3Par(p,fr,pd,i);
               gnuplot_plot_equation(handle, str, "Fit");
               printf("Showing surface plot with parameter %i fixed to %Lf\n",i+1,pd->fixedParVal[i]);
               printf("%i data points available for plot.\n",pd->plotDataSize[i]);
@@ -226,15 +242,52 @@ void plotData(const data * d, const parameters * p, const fit_results * fr, plot
           if(pd->axisLabelStyle[0][1]==1)
             gnuplot_cmd(handle,"set format y '%%12.2E'");
           if(pd->axisLabelStyle[0][p->numVar]==1)
-            gnuplot_cmd(handle,"set format z '%%12.2E'");
-          sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 2'; set zlabel 'Value'");
+            gnuplot_cmd(handle,"set format z '%%12.2E'"); 
+          if(strcmp(p->dataType,"chisq")==0)
+            gnuplot_cmd(handle,"set zlabel 'Chisq'");
+          else  
+            gnuplot_cmd(handle,"set zlabel 'Value'");
+          sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 2'");
           gnuplot_cmd(handle,str);
           gnuplot_setstyle(handle,"lines");
           gnuplot_cmd(handle,"set grid");//set style for fit data
           //generate fit data functional forms
-          sprintf(str, "%Lf*(x**2) + %Lf*(y**2) + %Lf*x*y + %Lf*x + %Lf*y + %Lf",fr->a[0],fr->a[1],fr->a[2],fr->a[3],fr->a[4],fr->a[5]);
+          if(strcmp(p->fitType,"par2")==0)
+            {
+              str=plotForm2Par(p,fr,pd,0);
+            }
           gnuplot_plot_equation(handle, str, "Fit");
           printf("Showing surface plot.\n");
+          printf("%i data points available for plot.\n",pd->plotDataSize[0]);
+          printf("Press [ENTER] to exit.");
+          getc(stdin);
+          gnuplot_resetplot(handle);
+        }
+    }
+  else if(strcmp(p->plotMode,"3d")==0)
+    {
+      if(p->numVar==3)
+        {
+          gnuplot_setstyle(handle,"points"); //set style for grid points
+          gnuplot_plot_xyza(handle, pd->data[0][0], pd->data[0][1], pd->data[0][2], pd->data[0][p->numVar], pd->plotDataSize[0], "Data");
+          if(pd->axisLabelStyle[0][0]==1)
+            gnuplot_cmd(handle,"set format x '%%12.2E'");
+          if(pd->axisLabelStyle[0][1]==1)
+            gnuplot_cmd(handle,"set format y '%%12.2E'");
+          if(pd->axisLabelStyle[0][2]==1)
+            gnuplot_cmd(handle,"set format z '%%12.2E'");
+          sprintf(str,"set xlabel 'Parameter 1'; set ylabel 'Parameter 2'; set zlabel 'Parameter 3'");
+          gnuplot_cmd(handle,str);
+          if(strcmp(p->fitType,"par3")==0)
+            {
+              gnuplot_setcolor(handle,"black");
+              gnuplot_cmd(handle,"set pointsize 1.5");
+              double xVert=(double)fr->fitVert[0];
+              double yVert=(double)fr->fitVert[1];
+              double zVert=(double)fr->fitVert[2];
+              gnuplot_plot_xyz(handle, &xVert, &yVert, &zVert, 1, "Fit Vertex");
+            }
+          printf("Showing heatmap plot.\n");
           printf("%i data points available for plot.\n",pd->plotDataSize[0]);
           printf("Press [ENTER] to exit.");
           getc(stdin);

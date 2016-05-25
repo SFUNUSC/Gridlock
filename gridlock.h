@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 
 #include "gnuplot_i.h"
 #include "lin_eq_solver.h"
@@ -14,11 +15,14 @@
 typedef struct
 {
   char filename[256];//name of the data file
+  char fitType[256];//the type of fit (linear,parabola,etc)
+  char dataType[256];//the type of data provided (regular, chisq values, etc.)
   int plotData;//0=don't plot, 1=plot
   char plotMode[256];//the plotting style to be used
   int numVar;
   long double ulimit[POWSIZE],llimit[POWSIZE];
   int verbose;//0=print everything,1=print vertex location only
+  int readWeights;//0=don't read data weights from file,1=read weights
 }parameters;
 
 typedef struct
@@ -46,7 +50,13 @@ typedef struct
 typedef struct
 {
   long double a[MAX_DIM]; //array holding parameters (desribing parboloid) from chisq minimization
+  long double aerr[MAX_DIM]; //array holding uncertainties in parameters
+  long double covar[MAX_DIM][MAX_DIM];//covariance between parameters (specified by the two indices)
   long double fitVert[POWSIZE]; //the vertex of the fit paraboloid
+  long double vertUBound[POWSIZE],vertLBound[POWSIZE];//upper and lower bounds of the vertex
+  long double vertVal; //value of the fit function at the vertex;
+  long double chisq,ndf;
+  int vertBoundsFound;
 }fit_results;
 
 //evil global variables
