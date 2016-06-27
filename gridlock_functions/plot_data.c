@@ -108,14 +108,38 @@ void preparePlotData(const data * d, const parameters * p, const fit_results * f
 
 }
 
-void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
+//handles the gnuplot prompt
+void plotPrompt(int cont)
+{
+	int c;
+	char inp[256];
+	if(cont==0)
+ 		printf("Enter 'g' for a gnuplot prompt or press [ENTER] to exit. ");
+	else
+		printf("Enter 'g' for a gnuplot prompt or press [ENTER] to continue. ");
+	c=getc(stdin);
+	if(c=='g')
+		{
+			printf("Enter 'exit' to return from the gnuplot prompt.\n");
+			fgets(inp,256,stdin);
+			while(strcmp(inp,"exit\n")!=0)
+				{
+					gnuplot_cmd(handle,inp);
+					printf("gnuplot > ");
+					fgets(inp,256,stdin);
+				}
+		}
+	return;
+}
+
+void plotData(const parameters * p, fit_results * fr, plot_data * pd)
 {
   int i;
   char * str=(char*)calloc(256,sizeof(char));
   plotOpen=1; 
   handle=gnuplot_init();
     
-  printf("\nDATA PLOTS\n----------\nUse 'l' in the plotting window to switch between linear and logarithmic scale.\n");
+  printf("\nDATA PLOTS\n----------\n");
   
   if(strcmp(p->plotMode,"1d")==0)
     {
@@ -141,11 +165,25 @@ void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
             str=plotForm2Par(p,fr,pd,i);
           else if(strcmp(p->fitType,"par1")==0)
             str=plotForm1Par(p,fr,pd,i);
-          else if(strcmp(p->fitType,"lin")==0)
-            str=plotFormLin(p,fr,pd,i);
+          else if((strcmp(p->fitType,"lin")==0)||(strcmp(p->fitType,"lin_deming")==0))
+            strcpy(str,fr->fitForm[0]);
           else if(strcmp(p->fitType,"poly3")==0)
             str=plotFormPoly3(p,fr,pd,i);
           gnuplot_plot_equation(handle, str, "Fit");
+          //plot confidence intervals
+          if(p->plotCI==1)
+          	{
+          		gnuplot_plot_xy(handle,fr->ciXVal[i],fr->ciUVal[i],CI_DIM,"Upper 1-sigma confidence band");
+          		gnuplot_plot_xy(handle,fr->ciXVal[i],fr->ciLVal[i],CI_DIM,"Lower 1-sigma confidence band");
+          		/*strcpy(str,fr->ciUForm[0]);
+          		gnuplot_plot_equation(handle, str, "Upper 95% confidence band");
+          		strcpy(str,fr->ciLForm[0]);
+          		gnuplot_plot_equation(handle, str, "Lower 95% confidence band");
+          		strcpy(str,fr->piUForm[0]);
+          		gnuplot_plot_equation(handle, str, "Upper 95% prediction band");
+          		strcpy(str,fr->piLForm[0]);
+          		gnuplot_plot_equation(handle, str, "Lower 95% prediction band");*/
+          	}
           printf("Showing plot for parameter %i.\n",i+1);
           if(p->numVar==3)
             {
@@ -165,10 +203,9 @@ void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
             }
           printf("%i data points available for plot.\n",pd->plotDataSize[i]);
           if(i<(p->numVar-1))
-            printf("Press [ENTER] to continue.");
+            plotPrompt(1);
           else
-            printf("Press [ENTER] to exit.");
-          getc(stdin);
+            plotPrompt(0);
           gnuplot_resetplot(handle);
         }
     }
@@ -226,10 +263,9 @@ void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
               printf("Showing surface plot with parameter %i fixed to %Lf\n",i+1,pd->fixedParVal[i]);
               printf("%i data points available for plot.\n",pd->plotDataSize[i]);
               if(i<(p->numVar-1))
-                printf("Press [ENTER] to continue.");
+                plotPrompt(1);
               else
-                printf("Press [ENTER] to exit.");
-              getc(stdin);
+                plotPrompt(0);
               gnuplot_resetplot(handle);
             }
         }
@@ -259,8 +295,7 @@ void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
           gnuplot_plot_equation(handle, str, "Fit");
           printf("Showing surface plot.\n");
           printf("%i data points available for plot.\n",pd->plotDataSize[0]);
-          printf("Press [ENTER] to exit.");
-          getc(stdin);
+          plotPrompt(0);
           gnuplot_resetplot(handle);
         }
     }
@@ -289,8 +324,7 @@ void plotData(const parameters * p, const fit_results * fr, plot_data * pd)
             }
           printf("Showing heatmap plot.\n");
           printf("%i data points available for plot.\n",pd->plotDataSize[0]);
-          printf("Press [ENTER] to exit.");
-          getc(stdin);
+          plotPrompt(0);
           gnuplot_resetplot(handle);
         }
     }

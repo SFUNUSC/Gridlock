@@ -15,7 +15,11 @@ void importData(data * d, parameters * p)
     {
       p->llimit[i]=-1*BIG_NUMBER;
       p->ulimit[i]=BIG_NUMBER;
+      d->max_x[i]=-1*BIG_NUMBER;
+      d->min_x[i]=BIG_NUMBER;
     }
+  d->max_m=-1*BIG_NUMBER;
+  d->min_m=BIG_NUMBER;
     
   if((inp=fopen(p->filename,"r"))==NULL)
     {
@@ -28,22 +32,37 @@ void importData(data * d, parameters * p)
     {
       if(fgets(str,256,inp)!=NULL)
         {
-          if(sscanf(str,"%s %s",str2,str3)==2)
+        	if(sscanf(str,"%s %s %Lf",str2,str3,&p->fitOpt)==3)
             {
               if(strcmp(str2,"FIT")==0)
-                {
-                  strcpy(p->fitType,str3);
-                }
+                strcpy(p->fitType,str3);
+              else
+              	p->fitOpt=0.;
             }
-          else if(strcmp(str,"NONVERBOSE\n")==0)
-            p->verbose=1;//only print the fit vertex data, unless an error occurs
-          else if(strcmp(str,"WEIGHTED\n")==0)
-            p->readWeights=1;//data has weights, in the last column
-          else if(strcmp(str,"UNWEIGHTED\n")==0)
-            p->readWeights=0;//data is unweighted
+          else if(sscanf(str,"%s %s",str2,str3)==2)
+            {
+              if(strcmp(str2,"FIT")==0)
+                strcpy(p->fitType,str3);
+              if(strcmp(str2,"UNIFORM_WEIGHT")==0)
+              	{
+              		p->uniWeight=1;
+              		p->uniWeightVal=(long double)atof(str3);
+              		p->fitOpt=0.;
+              	}
+            }
+					else if(strcmp(str,"NONVERBOSE\n")==0)
+						p->verbose=1;//only print the fit vertex data, unless an error occurs
+					else if(strcmp(str,"WEIGHTED\n")==0)
+						p->readWeights=1;//data has weights, in the last column
+					else if(strcmp(str,"UNWEIGHTED\n")==0)
+						p->readWeights=0;//data is unweighted
         }
     }
-  //check the fit type  
+  //check the fit type
+  if(strcmp(p->fitType,"poly1")==0)
+  	strcpy(p->fitType,"lin");
+  else if(strcmp(p->fitType,"poly2")==0)
+  	strcpy(p->fitType,"par1");
   if(strcmp(p->fitType,"par1")==0)
     p->numVar=1;
   else if(strcmp(p->fitType,"par2")==0)
@@ -51,6 +70,11 @@ void importData(data * d, parameters * p)
   else if(strcmp(p->fitType,"par3")==0)
     p->numVar=3;
   else if(strcmp(p->fitType,"lin")==0)
+  	{
+    	p->numVar=1;
+    	p->plotCI=1;
+    }
+  else if(strcmp(p->fitType,"lin_deming")==0)
     p->numVar=1;
   else if(strcmp(p->fitType,"poly3")==0)
     p->numVar=1;
@@ -73,9 +97,11 @@ void importData(data * d, parameters * p)
         printf("Will fit a paraboloid with %i free parameters.\n",p->numVar);
       if(strcmp(p->fitType,"par3")==0)
         printf("Will fit a paraboloid with %i free parameters.\n",p->numVar);
-      if(p->readWeights==0)
+      if(p->uniWeight==1)
+      	printf("Uniform weights of value %0.3Lf will be taken.\n",p->uniWeightVal);
+      else if(p->readWeights==0)
         printf("No weights will be taken for data points.\n");
-      if(p->readWeights==1)
+      else if(p->readWeights==1)
         printf("Weights for data points will be taken from the last column of the data file.\n");
     }
   fclose(inp);
@@ -108,12 +134,30 @@ void importData(data * d, parameters * p)
                     lineValid=0;
                     
               //deal with weights
-              if(p->readWeights==0)
+              if(p->uniWeight==1)
+              	d->x[p->numVar+1][d->lines]=p->uniWeightVal;
+              else if(p->readWeights==0)
                 d->x[p->numVar+1][d->lines]=1.;//set weights to 1
               if(d->x[p->numVar+1][d->lines]<=0)
                 lineValid=0;//invalidate data points with bad weights (can't divide by 0 weight)
               if(lineValid==1)
-                d->lines++;
+              	{
+              		//determine maximum and minimum values
+              		if(d->x[p->numVar][d->lines] > d->max_m)
+              			d->max_m=d->x[p->numVar][d->lines];
+              		if(d->x[p->numVar][d->lines] < d->min_m)
+              			d->min_m=d->x[p->numVar][d->lines];
+              		for(i=0;i<p->numVar;i++)
+              			{
+              				if(d->x[i][d->lines] > d->max_x[i])
+				          			d->max_x[i]=d->x[i][d->lines];
+				          		if(d->x[i][d->lines] < d->min_x[i])
+				          			d->min_x[i]=d->x[i][d->lines];
+              			}
+              		
+              		//got to the next data point
+                	d->lines++;
+                }
               else
                 invalidLines++;
             }
@@ -188,6 +232,12 @@ void importData(data * d, parameters * p)
                 }
             }
           linenum++;
+          if(linenum>MAXFILELENGTH)
+          	{
+          		printf("ERROR: Number of data points in input file exceeds MAXFILELENGTH (%i).\n",MAXFILELENGTH);
+          		printf("Please reduce the number of data points used, or modify MAXFILELENGTH in gridlock.h and recompile.\n");
+          		exit(-1);
+          	}
         }
     }
   fclose(inp);
