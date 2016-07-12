@@ -6,7 +6,6 @@
 
 #include "gnuplot_i.h"
 #include "lin_eq_solver.h"
-#include "tstat.h"
 
 #define POWSIZE         12
 #define MAXFILELENGTH   500000
@@ -14,6 +13,7 @@
 #define CI_DIM					100 //# of data points to use when plotting confidence interval
 #define BIG_NUMBER      1E10
 #define NUM_LIST        5
+#define PI        			3.1415926535897932384626433832795028841971693993751
 
 typedef struct
 {
@@ -21,6 +21,7 @@ typedef struct
   char fitType[256];//the type of fit (linear,parabola,etc)
   long double fitOpt;//fit option value (eg. delta for Deming regression) 
   char dataType[256];//the type of data provided (regular, chisq values, etc.)
+  int ciDelta;//delta value for confidence interval calculation
   int plotData;//0=don't plot, 1=plot
   char plotMode[256];//the plotting style to be used
   int plotCI;//0=don't plot confidence interval, 1=plot it

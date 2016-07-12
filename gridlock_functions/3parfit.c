@@ -100,7 +100,7 @@ void fit3Par(const data * d, fit_results * fr)
   for(i=0;i<d->lines;i++)//loop over data points for chisq
     {
       f=fr->a[0]*d->x[0][i]*d->x[0][i] + fr->a[1]*d->x[1][i]*d->x[1][i] + fr->a[2]*d->x[2][i]*d->x[2][i] + fr->a[3]*d->x[0][i]*d->x[1][i] + fr->a[4]*d->x[0][i]*d->x[2][i] + fr->a[5]*d->x[1][i]*d->x[2][i] + fr->a[6]*d->x[0][i] + fr->a[7]*d->x[1][i] + fr->a[8]*d->x[2][i] + fr->a[9];
-      fr->chisq+=(d->x[3][i] - f)*(d->x[3][i] - f)/(d->x[3+1][i]*d->x[3+1][i]);;
+      fr->chisq+=(d->x[3][i] - f)*(d->x[3][i] - f)/(d->x[3+1][i]*d->x[3+1][i]);
     }
   //Calculate covariances and uncertainties, see J. Wolberg 
   //'Data Analysis Using the Method of Least Squares' sec 2.5
@@ -145,12 +145,12 @@ void fit3Par(const data * d, fit_results * fr)
 
 //determine uncertainty ellipsoid bounds for the vertex by from fit function values fixed at min + delta
 //derived using the same procedure as for 2 free variables (see 2parfit.c), with an extra step solving the quadratic formula in between
-void fit3ParChisqConf(fit_results * fr)
+//delta is the desired confidence level (3.53 for 1-sigma in 3 parameters)
+void fit3ParChisqConf(const parameters * p, fit_results * fr)
 {
   
   long double a,b,c;
-  long double delta=3.53;//confidence level for 1-sigma in 3 parameters
-  delta*=fr->vertVal;
+  long double delta=p->ciDelta;
   fr->vertBoundsFound=1;
   
   a=(16.*fr->a[1]*fr->a[2] - 4.*fr->a[5]*fr->a[5])*(4.*fr->a[0]*fr->a[2] - fr->a[4]*fr->a[4]) - 16.*(fr->a[2]*fr->a[2]*fr->a[3]*fr->a[3] - fr->a[2]*fr->a[3]*fr->a[4]*fr->a[5]) - 4.*fr->a[4]*fr->a[4]*fr->a[5]*fr->a[5];
