@@ -1,10 +1,46 @@
+//prints the results
+void printLinDeming(const data * d, const parameters * p, const fit_results * fr)
+{
+  //simplified data printing depending on verbosity setting
+  if(p->verbose==1)
+    {
+      //print x and y intercept
+      printf("%LE %LE\n",fr->fitVert[0],fr->fitVert[1]);
+      return;
+    }
+  
+  printf("\nFIT RESULTS\n-----------\n");
+  //printf("Uncertainties reported at 1-sigma.\n");
+  printf("Fit function: f(x,y) = a1*x + a2 (Deming regression, delta = %0.3Lf)\n\n",p->fitOpt);
+  printf("Best chisq (fit): %0.3Lf\nBest chisq/NDF (fit): %0.3Lf\n\n",fr->chisq,fr->chisq/fr->ndf);
+  printf("Coefficients from fit: a1 = %LE\n",fr->a[0]);
+  printf("                       a2 = %LE\n",fr->a[1]);
+  printf("\n");
+  
+  printf("x-intercept = %LE\n",fr->fitVert[0]);
+  printf("y-intercept = %LE\n",fr->fitVert[1]);
+  
+  //printf("value at x=90 = %LE\n",fr->a[0]*90. + fr->a[1]);
+  //printf("CI at x=90 = [%LE %LE]\n",confIntVal(90.,fr,d,1),confIntVal(90.,fr,d,0));
+    
+}
+
+
+void plotFormLinDeming(const parameters * p, fit_results * fr)
+{
+	//set up equation forms for plotting
+	if(strcmp(p->plotMode,"1d")==0)
+		sprintf(fr->fitForm[0], "%Lf*x + %Lf",fr->a[0],fr->a[1]);
+}
+
+
 //fit data to a line of the form
 //f(x) = a1*x + a2
 //assuming errors in both x and y (Deming regression)
 //see https://en.wikipedia.org/wiki/Deming_regression
 //delta = ratio of variance in y/variance in x (1=errors perpendicular to line)
 //reduces to regular linear fit for large delta
-void fitLinDeming(const parameters * p, const data * d, fit_results * fr, long double delta)
+void fitLinDeming(const parameters * p, const data * d, fit_results * fr, plot_data * pd, int print)
 {
 
   int i;
@@ -12,6 +48,7 @@ void fitLinDeming(const parameters * p, const data * d, fit_results * fr, long d
   long double sxx=0.;
   long double sxy=0.;
   long double syy=0.;
+  long double delta=p->fitOpt;
   
   xb=d->xpowsum[0][1]/d->lines;
   yb=d->mxpowsum[0][0]/d->lines;
@@ -55,37 +92,16 @@ void fitLinDeming(const parameters * p, const data * d, fit_results * fr, long d
   fr->fitVert[0]=-1.0*fr->a[1]/fr->a[0];//x-intercept
   fr->fitVert[1]=fr->a[1];//y-intercept
   
-  //set up equation forms for plotting
-  if(strcmp(p->plotMode,"1d")==0)
-    {
-      sprintf(fr->fitForm[0], "%Lf*x + %Lf",fr->a[0],fr->a[1]);
-    }
-    
-}
-
-//prints the results
-void printLinDeming(const data * d, const parameters * p, const fit_results * fr)
-{
-  //simplified data printing depending on verbosity setting
-  if(p->verbose==1)
-    {
-      //print x and y intercept
-      printf("%LE %LE\n",fr->fitVert[0],fr->fitVert[1]);
-      return;
-    }
-  
-  printf("\nFIT RESULTS\n-----------\n");
-  //printf("Uncertainties reported at 1-sigma.\n");
-  printf("Fit function: f(x,y) = a1*x + a2 (Deming regression, delta = %0.3Lf)\n\n",p->fitOpt);
-  printf("Best chisq (fit): %0.3Lf\nBest chisq/NDF (fit): %0.3Lf\n\n",fr->chisq,fr->chisq/fr->ndf);
-  printf("Coefficients from fit: a1 = %LE\n",fr->a[0]);
-  printf("                       a2 = %LE\n",fr->a[1]);
-  printf("\n");
-  
-  printf("x-intercept = %LE\n",fr->fitVert[0]);
-  printf("y-intercept = %LE\n",fr->fitVert[1]);
-  
-  //printf("value at x=90 = %LE\n",fr->a[0]*90. + fr->a[1]);
-  //printf("CI at x=90 = [%LE %LE]\n",confIntVal(90.,fr,d,1),confIntVal(90.,fr,d,0));
-    
+	
+	if(print==1)
+		printLinDeming(d,p,fr);
+	
+	if((p->plotData==1)&&(p->verbose<1))
+		{
+			preparePlotData(d,p,fr,pd);
+			plotFormLinDeming(p,fr);
+			plotData(p,fr,pd);
+		}
+	
+	  
 }

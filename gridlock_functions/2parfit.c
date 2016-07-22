@@ -1,6 +1,132 @@
+//determine uncertainty ellipse bounds for the vertex by intersection of fit function with plane defining values at min + delta
+//delta is the desired confidence level (2.30 for 1-sigma in 2 parameters)
+//derived by: 
+//1) setting f(x,y)=delta+min
+//2) deriving x values as a function of y and vice versa via the quadratic formula
+//3) setting the expression under the sqrts obtained to 0 to define bounds for x,y
+//4) solving for upper and lower x,y bounds using the quadratic formula (calculated below)
+void fit2ParChisqConf(const parameters * p, fit_results * fr)
+{
+  
+  long double a,b,c;
+  long double delta=p->ciDelta;
+  fr->vertBoundsFound=1;
+  
+  a=4.*fr->a[1]*fr->a[0] - fr->a[2]*fr->a[2];
+  b=4.*fr->a[1]*fr->a[3] - 2.*fr->a[2]*fr->a[4];
+  c=4.*fr->a[1]*(fr->a[5] - delta - fr->vertVal) - fr->a[4]*fr->a[4];
+  if((b*b - 4*a*c)<0.) 
+    c=4.*fr->a[1]*(fr->a[5] + delta - fr->vertVal) - fr->a[4]*fr->a[4];//try flipping delta
+  if((b*b - 4*a*c)<0.)  
+    fr->vertBoundsFound=0;
+  else
+    {
+      fr->vertUBound[0]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+      fr->vertLBound[0]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+    }
+  
+  a=4.*fr->a[0]*fr->a[1] - fr->a[2]*fr->a[2];
+  b=4.*fr->a[0]*fr->a[4] - 2.*fr->a[2]*fr->a[3];
+  c=4.*fr->a[0]*(fr->a[5] - delta - fr->vertVal) - fr->a[3]*fr->a[3];
+  
+  if((b*b - 4*a*c)<0.) 
+    c=4.*fr->a[0]*(fr->a[5] + delta - fr->vertVal) - fr->a[3]*fr->a[3];//try flipping delta
+  if((b*b - 4*a*c)<0.)  
+    fr->vertBoundsFound=0;
+  else
+    {
+      fr->vertUBound[1]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+      fr->vertLBound[1]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+    }
+
+  //swap bounds if needed
+  int i;
+  for(i=0;i<2;i++)
+    if(fr->vertLBound[i]>fr->vertUBound[i])
+      {
+        a=fr->vertUBound[i];
+        fr->vertUBound[i]=fr->vertLBound[i];
+        fr->vertLBound[i]=a;
+      }
+
+}
+
+//prints fit data
+void print2Par(const data * d, const parameters * p, const fit_results * fr)
+{
+
+  int i;
+
+  //simplified data printing depending on verbosity setting
+  if(p->verbose==1)
+    {
+      //print vertex of paraboloid
+      for(i=0;i<p->numVar;i++)
+        printf("%LE ",fr->fitVert[i]);
+      printf("\n");
+      return;
+    }
+  
+  printf("\nFIT RESULTS\n-----------\n");
+  printf("Uncertainties reported at 1-sigma.\n");
+  printf("Fit function: f(x,y) = a1*x^2 + a2*y^2 + a3*x*y\n                     + a4*x + a5*y + a6\n\n");
+  printf("Best chisq (fit): %0.3Lf\nBest chisq/NDF (fit): %0.3Lf\n\n",fr->chisq,fr->chisq/fr->ndf);
+  printf("Coefficients from fit: a1 = %LE +/- %LE\n",fr->a[0],fr->aerr[0]);
+  for(i=1;i<6;i++)
+    printf("                       a%i = %LE +/- %LE\n",i+1,fr->a[i],fr->aerr[i]);
+  printf("\n");
+  
+  if(fr->a[0]>=0)
+    printf("Minimum in x direction, ");
+  else
+    printf("Maximum in x direction, ");
+  if(fr->vertBoundsFound==1)
+    {
+      //these values were calculated at long double precision, 
+      //check if they are the same to within float precision
+      if ((float)(fr->fitVert[0]-fr->vertLBound[0])==(float)(fr->vertUBound[0]-fr->fitVert[0]))
+        printf("x0 = %LE +/- %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
+      else
+        printf("x0 = %LE + %LE - %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0],fr->fitVert[0]-fr->vertLBound[0]);
+    }
+  else
+    printf("x0 = %LE\n",fr->fitVert[0]);
+  if(fr->a[1]>=0)
+    printf("Minimum in y direction, ");
+  else
+    printf("Maximum in y direction, ");
+  if(fr->vertBoundsFound==1)
+    {
+      if ((float)(fr->fitVert[1]-fr->vertLBound[1])==(float)(fr->vertUBound[1]-fr->fitVert[1]))
+        printf("y0 = %LE +/- %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1]);
+      else
+        printf("y0 = %LE + %LE - %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1],fr->fitVert[1]-fr->vertLBound[1]);
+    }
+  else
+    printf("y0 = %LE\n",fr->fitVert[1]);
+  
+  printf("\nf(x0,y0) = %LE\n",fr->vertVal);
+  
+}
+
+
+void plotForm2Par(const parameters * p, fit_results * fr, const plot_data * pd)
+{
+	//set up equation forms for plotting
+	if(strcmp(p->plotMode,"1d")==0)
+		{
+			sprintf(fr->fitForm[0], "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[1],fr->a[3],fr->a[4],pd->fixedParVal[1],fr->a[5]);
+			sprintf(fr->fitForm[1], "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[1],fr->a[0],pd->fixedParVal[0],fr->a[2],pd->fixedParVal[0],fr->a[4],fr->a[3],pd->fixedParVal[0],fr->a[5]);
+		}
+  else if(strcmp(p->plotMode,"2d")==0)
+    {
+      sprintf(fr->fitForm[0], "%Lf*(x**2) + %Lf*(y**2) + %Lf*x*y + %Lf*x + %Lf*y + %Lf",fr->a[0],fr->a[1],fr->a[2],fr->a[3],fr->a[4],fr->a[5]);
+    }
+}
+
 //fit data to a paraboloid of the form
 //f(x,y) = a1*x^2 + a2*y^2 + a3*x*y + a4*x + a5*y + a6
-void fit2Par(const data * d, fit_results * fr)
+void fit2Par(const parameters * p, const data * d, fit_results * fr, plot_data * pd, int print)
 {
   //construct equations (n=2 specific case)
   int i,j;
@@ -81,146 +207,20 @@ void fit2Par(const data * d, fit_results * fr)
 
   //find the value of the fit function at the vertex
   fr->vertVal=fr->a[0]*fr->fitVert[0]*fr->fitVert[0] + fr->a[1]*fr->fitVert[1]*fr->fitVert[1] + fr->a[2]*fr->fitVert[0]*fr->fitVert[1] + fr->a[3]*fr->fitVert[0] + fr->a[4]*fr->fitVert[1] + fr->a[5];
-
   
-}
-
-
-//determine uncertainty ellipse bounds for the vertex by intersection of fit function with plane defining values at min + delta
-//delta is the desired confidence level (2.30 for 1-sigma in 2 parameters)
-//derived by: 
-//1) setting f(x,y)=delta+min
-//2) deriving x values as a function of y and vice versa via the quadratic formula
-//3) setting the expression under the sqrts obtained to 0 to define bounds for x,y
-//4) solving for upper and lower x,y bounds using the quadratic formula (calculated below)
-void fit2ParChisqConf(const parameters * p, fit_results * fr)
-{
   
-  long double a,b,c;
-  long double delta=p->ciDelta;
-  fr->vertBoundsFound=1;
+  if(strcmp(p->dataType,"chisq")==0)
+  	fit2ParChisqConf(p,fr);//generate confidence interval bounds for chisq data
   
-  a=4.*fr->a[1]*fr->a[0] - fr->a[2]*fr->a[2];
-  b=4.*fr->a[1]*fr->a[3] - 2.*fr->a[2]*fr->a[4];
-  c=4.*fr->a[1]*(fr->a[5] - delta - fr->vertVal) - fr->a[4]*fr->a[4];
-  if((b*b - 4*a*c)<0.) 
-    c=4.*fr->a[1]*(fr->a[5] + delta - fr->vertVal) - fr->a[4]*fr->a[4];//try flipping delta
-  if((b*b - 4*a*c)<0.)  
-    fr->vertBoundsFound=0;
-  else
-    {
-      fr->vertUBound[0]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-      fr->vertLBound[0]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-    }
+  //print results
+  if(print==1)
+		print2Par(d,p,fr);
+		
+	if((p->plotData==1)&&(p->verbose<1))
+		{
+			preparePlotData(d,p,fr,pd);
+			plotForm2Par(p,fr,pd);
+			plotData(p,fr,pd);
+		}
   
-  a=4.*fr->a[0]*fr->a[1] - fr->a[2]*fr->a[2];
-  b=4.*fr->a[0]*fr->a[4] - 2.*fr->a[2]*fr->a[3];
-  c=4.*fr->a[0]*(fr->a[5] - delta - fr->vertVal) - fr->a[3]*fr->a[3];
-  
-  if((b*b - 4*a*c)<0.) 
-    c=4.*fr->a[0]*(fr->a[5] + delta - fr->vertVal) - fr->a[3]*fr->a[3];//try flipping delta
-  if((b*b - 4*a*c)<0.)  
-    fr->vertBoundsFound=0;
-  else
-    {
-      fr->vertUBound[1]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-      fr->vertLBound[1]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-    }
-
-  //swap bounds if needed
-  int i;
-  for(i=0;i<2;i++)
-    if(fr->vertLBound[i]>fr->vertUBound[i])
-      {
-        a=fr->vertUBound[i];
-        fr->vertUBound[i]=fr->vertLBound[i];
-        fr->vertLBound[i]=a;
-      }
-
-}
-
-
-//prints fit data
-void print2Par(const data * d, const parameters * p, const fit_results * fr)
-{
-
-  int i;
-
-  //simplified data printing depending on verbosity setting
-  if(p->verbose==1)
-    {
-      //print vertex of paraboloid
-      for(i=0;i<p->numVar;i++)
-        printf("%LE ",fr->fitVert[i]);
-      printf("\n");
-      return;
-    }
-  
-  printf("\nFIT RESULTS\n-----------\n");
-  printf("Uncertainties reported at 1-sigma.\n");
-  printf("Fit function: f(x,y) = a1*x^2 + a2*y^2 + a3*x*y\n                     + a4*x + a5*y + a6\n\n");
-  printf("Best chisq (fit): %0.3Lf\nBest chisq/NDF (fit): %0.3Lf\n\n",fr->chisq,fr->chisq/fr->ndf);
-  printf("Coefficients from fit: a1 = %LE +/- %LE\n",fr->a[0],fr->aerr[0]);
-  for(i=1;i<6;i++)
-    printf("                       a%i = %LE +/- %LE\n",i+1,fr->a[i],fr->aerr[i]);
-  printf("\n");
-  
-  if(fr->a[0]>=0)
-    printf("Minimum in x direction, ");
-  else
-    printf("Maximum in x direction, ");
-  if(fr->vertBoundsFound==1)
-    {
-      //these values were calculated at long double precision, 
-      //check if they are the same to within float precision
-      if ((float)(fr->fitVert[0]-fr->vertLBound[0])==(float)(fr->vertUBound[0]-fr->fitVert[0]))
-        printf("x0 = %LE +/- %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
-      else
-        printf("x0 = %LE + %LE - %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0],fr->fitVert[0]-fr->vertLBound[0]);
-    }
-  else
-    printf("x0 = %LE\n",fr->fitVert[0]);
-  if(fr->a[1]>=0)
-    printf("Minimum in y direction, ");
-  else
-    printf("Maximum in y direction, ");
-  if(fr->vertBoundsFound==1)
-    {
-      if ((float)(fr->fitVert[1]-fr->vertLBound[1])==(float)(fr->vertUBound[1]-fr->fitVert[1]))
-        printf("y0 = %LE +/- %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1]);
-      else
-        printf("y0 = %LE + %LE - %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1],fr->fitVert[1]-fr->vertLBound[1]);
-    }
-  else
-    printf("y0 = %LE\n",fr->fitVert[1]);
-  
-  printf("\nf(x0,y0) = %LE\n",fr->vertVal);
-  
-}
-
-//generates the functional form of the fit function for plotting,
-//which varies depending on the plotting mode (parameters may be fixed)
-char * plotForm2Par(const parameters * p, const fit_results * fr, plot_data * pd, int plotNum)
-{
-  char * str;
-  str=(char*)calloc(256,sizeof(char));
-  if(strcmp(p->plotMode,"1d")==0)
-    {
-      if(plotNum==0)
-        sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[1],fr->a[3],fr->a[4],pd->fixedParVal[1],fr->a[5]);
-      else if(plotNum==1)
-        sprintf(str, "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf",fr->a[1],fr->a[0],pd->fixedParVal[0],fr->a[2],pd->fixedParVal[0],fr->a[4],fr->a[3],pd->fixedParVal[0],fr->a[5]);
-    }
-  else if(strcmp(p->plotMode,"2d")==0)
-    {
-      sprintf(str, "%Lf*(x**2) + %Lf*(y**2) + %Lf*x*y + %Lf*x + %Lf*y + %Lf",fr->a[0],fr->a[1],fr->a[2],fr->a[3],fr->a[4],fr->a[5]);
-    }
-  else
-    {
-      printf("ERROR: Invalid plot mode (%s), cannot get functional form.\n",p->plotMode);
-      exit(-1);
-    }
-    
-  return str;
-
 }
