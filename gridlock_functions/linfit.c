@@ -58,7 +58,7 @@ void plotFormLin(const parameters * p, fit_results * fr)
 {
 	//set up equation forms for plotting
 	if(strcmp(p->plotMode,"1d")==0)
-		sprintf(fr->fitForm[0], "%Lf*x + %Lf",fr->a[0],fr->a[1]);
+		sprintf(fr->fitForm[0], "%LE*x + %LE",fr->a[0],fr->a[1]);
 }
 
 //fit data to a line of the form
@@ -78,12 +78,13 @@ void fitLin(const parameters * p, const data * d, fit_results * fr, plot_data * 
   linEq.vector[0]=d->mxpowsum[0][1];
   linEq.vector[1]=d->mxpowsum[0][0];
     
-  //solve system of equations and assign values
-  if(!(solve_lin_eq(&linEq)==1))
-    {
-      printf("ERROR: Could not determine fit parameters.\n");
-      exit(-1);
-    }
+	//solve system of equations and assign values
+	if(!(solve_lin_eq(&linEq)==1))
+		{
+			printf("ERROR: Could not determine fit parameters.\n");
+			printf("Perhaps there are not enough data points to perform a fit?\n");
+			exit(-1);
+		}
   
   //save fit parameters  
   for(i=0;i<linEq.dim;i++)

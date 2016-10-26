@@ -126,7 +126,7 @@ void plotFormPoly3(const parameters * p, fit_results * fr)
 	//set up equation forms for plotting
 	if(strcmp(p->plotMode,"1d")==0)
 		{
-			sprintf(fr->fitForm[0], "%Lf*(x**3) + %Lf*(x**2) + %Lf*x + %Lf",fr->a[0],fr->a[1],fr->a[2],fr->a[3]);
+			sprintf(fr->fitForm[0], "%LE*x*x*x + %0.10LE*x*x + %LE*x + %LE",fr->a[0],fr->a[1],fr->a[2],fr->a[3]);
 		}
 }
 
@@ -164,12 +164,13 @@ void fitPoly3(const parameters * p, const data * d, fit_results * fr, plot_data 
   linEq.vector[2]=d->mxpowsum[0][1];
   linEq.vector[3]=d->mxpowsum[0][0];
     
-  //solve system of equations and assign values
-  if(!(solve_lin_eq(&linEq)==1))
-    {
-      printf("ERROR: Could not determine fit parameters.\n");
-      exit(-1);
-    }
+	//solve system of equations and assign values
+	if(!(solve_lin_eq(&linEq)==1))
+		{
+			printf("ERROR: Could not determine fit parameters.\n");
+			printf("Perhaps there are not enough data points to perform a fit?\n");
+			exit(-1);
+		}
   
   //save fit parameters  
   for(i=0;i<linEq.dim;i++)

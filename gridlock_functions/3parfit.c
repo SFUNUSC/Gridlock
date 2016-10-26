@@ -1,3 +1,13 @@
+//evaluates the fit function at the specified point
+long double eval3Par(long double x,long double y,long double z, const fit_results * fr)
+{
+	return fr->a[0]*x*x + fr->a[1]*y*y + fr->a[2]*z*z 
+	+ fr->a[3]*x*y + fr->a[4]*x*z + fr->a[5]*y*z 
+	+ fr->a[6]*x + fr->a[7]*y + fr->a[8]*z 
+	+ fr->a[9];
+}
+
+
 //determine uncertainty ellipsoid bounds for the vertex by from fit function values fixed at min + delta
 //derived using the same procedure as for 2 free variables (see 2parfit.c), with an extra step solving the quadratic formula in between
 //delta is the desired confidence level (3.53 for 1-sigma in 3 parameters)
@@ -17,8 +27,8 @@ void fit3ParChisqConf(const parameters * p, fit_results * fr)
     fr->vertBoundsFound=0;
   else
     {
-      fr->vertUBound[0]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-      fr->vertLBound[0]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+      fr->vertUBound[0]=(-1.*b + (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
+      fr->vertLBound[0]=(-1.*b - (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
     }
 
   a=(16.*fr->a[0]*fr->a[2] - 4.*fr->a[4]*fr->a[4])*(4.*fr->a[0]*fr->a[1] - fr->a[3]*fr->a[3]) - 16.*(fr->a[0]*fr->a[0]*fr->a[5]*fr->a[5] - fr->a[0]*fr->a[3]*fr->a[4]*fr->a[5]) - 4.*fr->a[3]*fr->a[3]*fr->a[4]*fr->a[4];  
@@ -30,8 +40,8 @@ void fit3ParChisqConf(const parameters * p, fit_results * fr)
     fr->vertBoundsFound=0;
   else
     {
-      fr->vertUBound[1]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-      fr->vertLBound[1]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+      fr->vertUBound[1]=(-1.*b + (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
+      fr->vertLBound[1]=(-1.*b - (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
     }
   
   a=(16.*fr->a[0]*fr->a[1] - 4.*fr->a[3]*fr->a[3])*(4.*fr->a[0]*fr->a[2] - fr->a[4]*fr->a[4]) - 16.*(fr->a[0]*fr->a[0]*fr->a[5]*fr->a[5] - fr->a[0]*fr->a[3]*fr->a[4]*fr->a[5]) - 4.*fr->a[3]*fr->a[3]*fr->a[4]*fr->a[4];
@@ -43,8 +53,8 @@ void fit3ParChisqConf(const parameters * p, fit_results * fr)
     fr->vertBoundsFound=0;
   else
     {
-      fr->vertUBound[2]=(-1.*b + (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
-      fr->vertLBound[2]=(-1.*b - (long double)sqrt((double)(b*b - 4*a*c)))/(2*a);
+      fr->vertUBound[2]=(-1.*b + (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
+      fr->vertLBound[2]=(-1.*b - (long double)sqrt((double)(b*b - 4.*a*c)))/(2.*a);
     }
   
   //swap bounds if needed
@@ -138,15 +148,15 @@ void plotForm3Par(const parameters * p, fit_results * fr, const plot_data * pd)
 	//set up equation forms for plotting
 	if(strcmp(p->plotMode,"1d")==0)
 		{
-			sprintf(fr->fitForm[0], "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*x*%Lf + %Lf*%Lf*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[1],pd->fixedParVal[2],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],pd->fixedParVal[2],fr->a[9]);
-			sprintf(fr->fitForm[1], "%Lf*(%Lf**2) + %Lf*(x**2) + %Lf*(%Lf**2) + %Lf*x*%Lf + %Lf*%Lf*%Lf + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[7],fr->a[6],pd->fixedParVal[0],fr->a[8],pd->fixedParVal[2],fr->a[9]);
-			sprintf(fr->fitForm[2], "%Lf*(%Lf**2) + %Lf*(%Lf**2) + %Lf*(x**2) + %Lf*%Lf*%Lf + %Lf*x*%Lf + %Lf*x*%Lf + %Lf*x + %Lf*%Lf + %Lf*%Lf + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[0],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[0],fr->a[5],pd->fixedParVal[1],fr->a[8],fr->a[6],pd->fixedParVal[0],fr->a[7],pd->fixedParVal[1],fr->a[9]);
+			sprintf(fr->fitForm[0], "%LE*(x**2) + %LE*(%LE**2) + %LE*(%LE**2) + %LE*x*%LE + %LE*x*%LE + %LE*%LE*%LE + %LE*x + %LE*%LE + %LE*%LE + %LE",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[1],pd->fixedParVal[2],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],pd->fixedParVal[2],fr->a[9]);
+			sprintf(fr->fitForm[1], "%LE*(%LE**2) + %LE*(x**2) + %LE*(%LE**2) + %LE*x*%LE + %LE*%LE*%LE + %LE*x*%LE + %LE*x + %LE*%LE + %LE*%LE + %LE",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[7],fr->a[6],pd->fixedParVal[0],fr->a[8],pd->fixedParVal[2],fr->a[9]);
+			sprintf(fr->fitForm[2], "%LE*(%LE**2) + %LE*(%LE**2) + %LE*(x**2) + %LE*%LE*%LE + %LE*x*%LE + %LE*x*%LE + %LE*x + %LE*%LE + %LE*%LE + %LE",fr->a[0],pd->fixedParVal[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[0],pd->fixedParVal[1],fr->a[4],pd->fixedParVal[0],fr->a[5],pd->fixedParVal[1],fr->a[8],fr->a[6],pd->fixedParVal[0],fr->a[7],pd->fixedParVal[1],fr->a[9]);
     }
   else if(strcmp(p->plotMode,"2d")==0)
 		{
-			sprintf(fr->fitForm[0], "%Lf*(%Lf**2) + %Lf*(x**2) + %Lf*(y**2) + %Lf*%Lf*x + %Lf*%Lf*y + %Lf*x*y + %Lf*%Lf + %Lf*x + %Lf*y + %Lf",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],fr->a[5],fr->a[6],pd->fixedParVal[0],fr->a[7],fr->a[8],fr->a[9]);//x=par[1],y=par[2]
-			sprintf(fr->fitForm[1], "%Lf*(x**2) + %Lf*(%Lf**2) + %Lf*(y**2) + %Lf*x*%Lf + %Lf*x*y + %Lf*%Lf*y + %Lf*x + %Lf*%Lf + %Lf*y + %Lf",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[1],fr->a[4],fr->a[5],pd->fixedParVal[1],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],fr->a[9]);//x=par[0],y=par[2]
-			sprintf(fr->fitForm[2], "%Lf*(x**2) + %Lf*(y**2) + %Lf*(%Lf**2) + %Lf*x*y + %Lf*x*%Lf + %Lf*y*%Lf + %Lf*x + %Lf*y + %Lf*%Lf + %Lf",fr->a[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[6],fr->a[7],fr->a[8],pd->fixedParVal[2],fr->a[9]);//x=par[0],y=par[1]
+			sprintf(fr->fitForm[0], "%LE*(%LE**2) + %LE*(x**2) + %LE*(y**2) + %LE*%LE*x + %LE*%LE*y + %LE*x*y + %LE*%LE + %LE*x + %LE*y + %LE",fr->a[0],pd->fixedParVal[0],fr->a[1],fr->a[2],fr->a[3],pd->fixedParVal[0],fr->a[4],pd->fixedParVal[0],fr->a[5],fr->a[6],pd->fixedParVal[0],fr->a[7],fr->a[8],fr->a[9]);//x=par[1],y=par[2]
+			sprintf(fr->fitForm[1], "%LE*(x**2) + %LE*(%LE**2) + %LE*(y**2) + %LE*x*%LE + %LE*x*y + %LE*%LE*y + %LE*x + %LE*%LE + %LE*y + %LE",fr->a[0],fr->a[1],pd->fixedParVal[1],fr->a[2],fr->a[3],pd->fixedParVal[1],fr->a[4],fr->a[5],pd->fixedParVal[1],fr->a[6],fr->a[7],pd->fixedParVal[1],fr->a[8],fr->a[9]);//x=par[0],y=par[2]
+			sprintf(fr->fitForm[2], "%LE*(x**2) + %LE*(y**2) + %LE*(%LE**2) + %LE*x*y + %LE*x*%LE + %LE*y*%LE + %LE*x + %LE*y + %LE*%LE + %LE",fr->a[0],fr->a[1],fr->a[2],pd->fixedParVal[2],fr->a[3],fr->a[4],pd->fixedParVal[2],fr->a[5],pd->fixedParVal[2],fr->a[6],fr->a[7],fr->a[8],pd->fixedParVal[2],fr->a[9]);//x=par[0],y=par[1]
 		}
 }
 
@@ -237,12 +247,13 @@ void fit3Par(const parameters * p, const data * d, fit_results * fr, plot_data *
     linEq.vector[i]=d->mxpowsum[i-6][1];
   linEq.vector[9]=d->msum;
     
-  //solve system of equations and assign values
-  if(!(solve_lin_eq(&linEq)==1))
-    {
-      printf("ERROR: Could not determine fit parameters.\n");
-      exit(-1);
-    }
+	//solve system of equations and assign values
+	if(!(solve_lin_eq(&linEq)==1))
+		{
+			printf("ERROR: Could not determine fit parameters.\n");
+			printf("Perhaps there are not enough data points to perform a fit?\n");
+			exit(-1);
+		}
   
   //save fit parameters  
   for(i=0;i<linEq.dim;i++)
@@ -288,12 +299,10 @@ void fit3Par(const parameters * p, const data * d, fit_results * fr, plot_data *
     }
   
   for(i=0;i<linEq.dim;i++)
-    fr->fitVert[i]=linEq.solution[i];
-    
+    fr->fitVert[i]=linEq.solution[i];   
   
-  //find the value of the fit function at the vertex
-  fr->vertVal=fr->a[0]*fr->fitVert[0]*fr->fitVert[0] + fr->a[1]*fr->fitVert[1]*fr->fitVert[1] + fr->a[2]*fr->fitVert[2]*fr->fitVert[2] + fr->a[3]*fr->fitVert[0]*fr->fitVert[1] + fr->a[4]*fr->fitVert[0]*fr->fitVert[2] + fr->a[5]*fr->fitVert[1]*fr->fitVert[2] + fr->a[6]*fr->fitVert[0] + fr->a[7]*fr->fitVert[1] + fr->a[8]*fr->fitVert[2] + fr->a[9];
-	
+	//find the value of the fit function at the vertex
+	fr->vertVal=eval3Par(fr->fitVert[0],fr->fitVert[1],fr->fitVert[2],fr);
 	
 	if(strcmp(p->dataType,"chisq")==0)
 		fit3ParChisqConf(p,fr);//generate confidence interval bounds for chisq data
