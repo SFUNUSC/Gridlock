@@ -43,15 +43,22 @@ void importData(data * d, parameters * p)
             {
               if(strcmp(str2,"FIT")==0)
                 strcpy(p->fitType,str3);
-              if(strcmp(str2,"UNIFORM_WEIGHT")==0)
+              else if(strcmp(str2,"UNIFORM_WEIGHT")==0)
               	{
               		p->uniWeight=1;
               		p->uniWeightVal=(long double)atof(str3);
               		p->fitOpt=0.;
               	}
+              else if(strcmp(str2,"LINEAR_FILTER")==0)
+              	{
+              		p->filter=1;//use linear filter on data
+              		p->filterSigma=atof(str3);
+              	}
             }
-					else if(strcmp(str,"NONVERBOSE\n")==0)
+					else if(strcmp(str,"PARAMETERS\n")==0)
 						p->verbose=1;//only print the fit vertex data, unless an error occurs
+					else if(strcmp(str,"COEFFICIENTS\n")==0)
+						p->verbose=2;//only print the fit coefficients, unless an error occurs
 					else if(strcmp(str,"WEIGHTED\n")==0)
 						p->readWeights=1;//data has weights, in the last column
 					else if(strcmp(str,"UNWEIGHTED\n")==0)
