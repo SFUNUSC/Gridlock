@@ -26,7 +26,8 @@ typedef struct
   char plotMode[256];//the plotting style to be used
   int plotCI;//0=don't plot confidence interval, 1=plot it
   int numVar;
-  long double ulimit[POWSIZE],llimit[POWSIZE];
+  long double ulimit[POWSIZE],llimit[POWSIZE];//uppder and lower limits for variable values
+  long double dllimit,dulimit;//upper and lower limits for data values
   int verbose;//0=print everything,1=print vertex location only
   int readWeights;//0=don't read data weights from file,1=read weights from file
   int uniWeight;//0=uniform weight not specified,1=uniform weight specified
@@ -52,6 +53,7 @@ typedef struct
 {
   long double fixedParVal[POWSIZE];//values to fix parameters at when plotting in less dimensions than the data provides
   double data[POWSIZE][POWSIZE][MAXFILELENGTH];//array containing data points to be plotted, indexed by plot # then variable # then data point #
+  double max_m,min_m;//maximum and minimum values
   double ciData[POWSIZE][POWSIZE][MAXFILELENGTH];//array containing confidence interval data points to be plotted, indexed by plot # then variable # then data point #
   double fit[POWSIZE][POWSIZE][MAXFILELENGTH];//array containing fit data to be plotted, indexed by plot # then variable # then data point #
   int plotDataSize[POWSIZE];
