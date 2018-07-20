@@ -5,19 +5,19 @@ Maintainer: Jonathan Williams
 
 ## Description
 
-Gridlock is a program for fitting grids of data points with various functions and finding fit properties (eg. confidence intervals, intercepts, vertices).  Fitting routines are available for data with up to 3 free parameters.  Example data is included in the `sample_*.txt` files.
+Gridlock is a program for fitting grids of data points with various functions and finding fit properties (eg. confidence intervals, intercepts, vertices).  Fitting routines are available for data with up to 3 free parameters.  Example data is included in the files in the `sample` directory.
 
 Data files must contain a line specifying the fit function, formatted 'FIT type' where 'type' is the name of the fit function (eg. 'par1', see *Fitting Functions Available* section below).  It is possible to specify grid fitting limits for each parameter in data files (see the *Options* section below and the `sample_3par.txt` file for an example).  It is also possible to plot data (using `gnuplot`) by including a line in the data file specifying a plotting style, see the options section below.
  
 
 ## Features
 
-* Fits data on a grid of up to 3 free variables
-* Uses fast non-iterative linear least-squares method
-* Automatically calculates and displays certain properties of fits (confidence intervals, intercepts, vertices)
+* Fits data on a grid of up to 3 free variables.
+* Uses fast non-iterative linear least-squares method.
+* Automatically calculates and displays certain properties of fits (confidence intervals, intercepts, vertices).
 * Various polynomial type fitting functions implemented.
-* Simple ASCII data file format (compatible with gnuplot, excel, etc.)
-* Plotting of fits is available via a built-in interface to gnuplot (program will still compile and run if gnuplot is not present, but plotting will be unavailable)
+* Simple ASCII data file format (compatible with gnuplot, excel, etc.).
+* Plotting of fits is available via a built-in interface to gnuplot (program will still compile and run if gnuplot is not present, but plotting will be unavailable).
 
 
 ## How to Install
@@ -26,7 +26,7 @@ Use `make` to compile.  Optional data plotting requires `gnuplot` to be installe
 
 To run the program from anywhere, move the resulting `gridlock` executable to any directory under your `$PATH` environment variable.
 
-Tested using gcc and GNU make on Ubuntu 14.04/16.04, Scientific Linux/CentOS 6, and Arch Linux (as of July 2016).  The code is self-contained and should work on more or less any Linux distro.
+Tested using gcc and GNU make on Ubuntu 14.04/16.04, Scientific Linux/CentOS 6, and Arch Linux (as of Jan 2018).  The code may not build on compilers/platforms without support for 128-bit floating point (__float128) values, which are used to obtain higher precision in fits.  Otherwise the code is self-contained and should work on more or less any Linux distro.
 
 
 ## Fitting Functions Available
@@ -63,7 +63,7 @@ Add these options (eg. 'PLOT 1d') as a single line anywhere in the data file to 
 
 |**Option**|**Effect**|
 |:---:|:---:|
-| DATA_TYPE chisq | Tells the program that the data provided corresponds to reduced chi-square goodness of fit statistic values computed on a grid for each of the free parameters.|
+| DATA_TYPE chisq | Tells the program that the data provided corresponds to chi-square goodness of fit statistic values computed on a grid for each of the free parameters.|
 | PARAMETERS | If used, the program will only output the fit parameters (coordinates of the fit paraboloid vertex, or x and y intercept for a linear fit), which can be useful for interfacing the program with shell scripts.|
 | COEFFICIENTS | If used, the program will only output the fit coefficients (a1, a2, ... ), which can be useful for interfacing the program with shell scripts.|
 | PLOT 1d | Shows plot(s) in one variable, using fixed values for any other variables corresponding to the closest data points to the local minimum/maximum of the fit function.|
@@ -74,9 +74,12 @@ Add these options (eg. 'PLOT 1d') as a single line anywhere in the data file to 
 | LINEAR_FILTER sigma | Before fitting, filter the data to emphasize prominent linear features, by only keeping data falling within sigma standard deviations of the mean x/y value.  Only applicable to data with one free parameter.|
 | LOWER_LIMITS value1 value2 value3 | Lower fit limits for each variable (specify as many values as there are variables).  Use with UPPER_LIMITS to specify a fit range.|
 | UPPER_LIMITS value1 value2 value3 | Upper fit limits for each variable (specify as many values as there are variables).  Use with LOWER_LIMITS to specify a fit range.|
-| DATA_LOWER_LIMIT value | Lower fit limit for data values.  Use with DATA_UPPER_LIMIT to specify a fit range for data values.|
-| DATA_UPPER_LIMIT value | Upper fit limit for data values.  Use with DATA_LOWER_LIMIT to specify a fit range for data values.|
-
+| DATA_LOWER_LIMIT value | Lower fit limit for data values.  Use with DATA_UPPER_LIMIT to specify a fit range for data values.  This option can be used to filter outlier data.|
+| DATA_UPPER_LIMIT value | Upper fit limit for data values.  Use with DATA_LOWER_LIMIT to specify a fit range for data values.  This option can be used to filter outlier data.|
+| ZEROX | When fitting using the *par2* function with chisq data, show the fit result assuming a minimum in x at x=0.|
+| ZEROY | When fitting using the *par2* function with chisq data, show the fit result assuming a minimum in y at y=0.|
+| EVAL_CI value | When fitting a function (such as 'lin') which provides a confidence interval, evaluate the bounds of the confidence interval for the given value of the independent variable.|
+| SET_CI_DELTA value | When fitting chi-square data, manually set the delta value used to evaluate uncertainties (by default, delta is set to the 1-sigma bound ie. 1.00 for 1 parameter, 2.30 for 2 parameters, etc.).|
 
 ## Acknowledgments
 

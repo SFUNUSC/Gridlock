@@ -237,6 +237,16 @@ void gnuplot_setstyle(gnuplot_ctrl * h, char * plot_style)
     return ;
 }
 
+
+//set whether the output plot is smoothed
+//val=1 : smoothed
+//val=0 : not smoothed
+void gnuplot_setsmooth(gnuplot_ctrl * h, int val)
+{
+    h->smooth=val;
+    return ;
+}
+
 void gnuplot_setcolor(gnuplot_ctrl * h, char * color)
 {
     if (strcmp(color, "black") &&
@@ -445,6 +455,60 @@ void gnuplot_plot_xy(
     return ;
 }
 
+
+//JW: same as the above function but modified to allow skipping over individual
+//lines of data or blocks of data
+//ndim = # of data points in each 'block'
+//nskip = take only every nskipth data point
+//nblockskip = take only every nblockskipth data block
+void gnuplot_plot_xygrid(
+    gnuplot_ctrl    *   handle,
+    double          *   x,
+    double          *   y,
+    int                 n,
+    int                 ndim,
+    int                 nskip,
+    int                 nblockskip,
+    char            *   title
+)
+{
+    int     i,k ;
+    FILE*   tmpfd ;
+    char const * tmpfname;
+
+    if (handle==NULL || x==NULL || y==NULL || (n<1)) return ;
+
+    /* Open temporary file for output   */
+    tmpfname = gnuplot_tmpfile(handle);
+    tmpfd = fopen(tmpfname, "w");
+
+    if (tmpfd == NULL) {
+        fprintf(stderr,"cannot create temporary file: exiting plot") ;
+        return ;
+    }
+
+    /* Write data to this file  */
+    k=ndim*nblockskip;
+    for (i=0 ; i<n; i++) {
+        if(nskip>0) {
+            if(i%nskip==0) {
+                fprintf(tmpfd, "%.18e %.18e\n", x[i], y[i]) ;
+            }  
+        }else if(nblockskip>0){
+            if(i%k<ndim) {
+                fprintf(tmpfd, "%.18e %.18e\n", x[i], y[i]) ;
+            }   
+        }else{
+            fprintf(tmpfd, "%.18e %.18e\n", x[i], y[i]) ;
+        }
+    }
+    
+    fclose(tmpfd) ;
+
+    gnuplot_plot_atmpfile(handle,tmpfname,title);
+    return ;
+}
+
 /*-------------------------------------------------------------------------*/
 /**
   @brief    Plot a 3d graph from a list of points.
@@ -507,6 +571,68 @@ void gnuplot_plot_xyz(
     /* Write data to this file  */
     for (i=0 ; i<n; i++) {
         fprintf(tmpfd, "%.18e %.18e %.18e\n", x[i], y[i], z[i]) ;
+    }
+    fclose(tmpfd) ;
+
+    gnuplot_splot_atmpfile(handle,tmpfname,title);
+    return ;
+}
+
+//JW: same as the above function but modified to allow plotting of grid data as a mesh
+//gnuplot requires empty lines between each block of data for all x values in the grid
+//ndim = # of points in each dimension of the grid = # of data points in each 'block' of x values
+//nskip = take only every nskipth data point
+void gnuplot_plot_xyzgrid(
+    gnuplot_ctrl    *   handle,
+    double          *   x,
+    double          *   y,
+    double          *   z,
+    int                 n,
+    int                 ndim,
+    int                 nskip,
+    int                 nblockskip,
+    char            *   title
+)
+{
+    int     i,j,k ;
+    FILE*   tmpfd ;
+    char const * tmpfname;
+
+    if (handle==NULL || x==NULL || y==NULL || z==NULL || (n<1)) return ;
+
+    /* Open temporary file for output   */
+    tmpfname = gnuplot_tmpfile(handle);
+    tmpfd = fopen(tmpfname, "w");
+
+    if (tmpfd == NULL) {
+        fprintf(stderr,"cannot create temporary file: exiting plot") ;
+        return ;
+    }
+
+    /* Write data to this file  */
+    j=0;
+    k=ndim*nblockskip;
+    for (i=0 ; i<n; i++) {
+        if(nskip>0) {
+            if(i%nskip==0) {
+                fprintf(tmpfd, "%.18e %.18e %.18e\n", x[i], y[i], z[i]) ;
+            }  
+            j++;
+        }else if(nblockskip>0){
+            if(i%k<ndim) {
+                fprintf(tmpfd, "%.18e %.18e %.18e\n", x[i], y[i], z[i]) ;
+                j++;
+            }   
+        }else{
+            fprintf(tmpfd, "%.18e %.18e %.18e\n", x[i], y[i], z[i]) ;
+            j++;
+        }
+        
+        
+        if(j>=ndim) {
+            fprintf(tmpfd, "\n"); //insert blank line
+            j=0;
+        }
     }
     fclose(tmpfd) ;
 
@@ -640,6 +766,7 @@ void gnuplot_plot_equation(
     char const *    cmd    = (h->nplots > 0) ? "replot" : "plot";
     title                  = (title == NULL)      ? "(none)" : title;
 
+    //printf("Equation: %s\n",equation);
     gnuplot_cmd(h, "%s %s title \"%s\" with %s",
                   cmd, equation, title, h->pstyle) ;
     h->nplots++ ;
@@ -829,9 +956,20 @@ void gnuplot_plot_atmpfile(gnuplot_ctrl * handle, char const* tmp_filename, char
     char const *    cmd    = (handle->nplots > 0) ? "replot" : "plot";
     title                  = (title == NULL)      ? "(none)" : title;
     if(handle->colSet==0)
-        gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s", cmd, tmp_filename,title, handle->pstyle) ;
+        {
+            if(handle->smooth)
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s smooth bezier", cmd, tmp_filename,title, handle->pstyle) ;
+            else
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s", cmd, tmp_filename,title, handle->pstyle) ;
+        }
     else
-        gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+        {
+            if(handle->smooth)
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s smooth bezier", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+            else
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+        }
+        
     handle->nplots++ ;
     return ;
 }
@@ -841,9 +979,20 @@ void gnuplot_splot_atmpfile(gnuplot_ctrl * handle, char const* tmp_filename, cha
     char const *    cmd    = (handle->nplots > 0) ? "replot" : "splot";
     title                  = (title == NULL)      ? "(none)" : title;
     if(handle->colSet==0)
-        gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s", cmd, tmp_filename,title, handle->pstyle) ;
+        {
+            if(handle->smooth)
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s smooth bezier", cmd, tmp_filename,title, handle->pstyle) ;
+            else
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" with %s", cmd, tmp_filename,title, handle->pstyle) ;
+        }
     else
-        gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+        {
+            if(handle->smooth)
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s smooth bezier", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+            else
+                gnuplot_cmd(handle, "%s \"%s\" title \"%s\" lt rgb \"%s\" with %s", cmd, tmp_filename,title, handle->col, handle->pstyle) ;
+        }
+        
     handle->nplots++ ;
     return ;
 }

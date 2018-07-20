@@ -20,6 +20,7 @@ void importData(data * d, parameters * p)
     }
   p->dllimit=-1*BIG_NUMBER;
   p->dulimit=BIG_NUMBER;
+  p->numCIEvalPts=0;
   d->max_m=-1*BIG_NUMBER;
   d->min_m=BIG_NUMBER;
     
@@ -56,15 +57,24 @@ void importData(data * d, parameters * p)
               		p->filter=1;//use linear filter on data
               		p->filterSigma=atof(str3);
               	}
+              else if(strcmp(str2,"EVAL_CI")==0)
+              	{
+              		p->CIEvalPts[p->numCIEvalPts]=(long double)atof(str3);
+                  p->numCIEvalPts++;
+              	}
             }
 					else if(strcmp(str,"PARAMETERS\n")==0)
 						p->verbose=1;//only print the fit vertex data, unless an error occurs
 					else if(strcmp(str,"COEFFICIENTS\n")==0)
 						p->verbose=2;//only print the fit coefficients, unless an error occurs
-					else if(strcmp(str,"WEIGHTED\n")==0)
+					else if((strcmp(str,"WEIGHTED\n")==0)||(strcmp(str,"WEIGHT\n")==0)||(strcmp(str,"WEIGHTS\n")==0))
 						p->readWeights=1;//data has weights, in the last column
 					else if(strcmp(str,"UNWEIGHTED\n")==0)
 						p->readWeights=0;//data is unweighted
+          else if(strcmp(str,"ZEROX\n")==0)
+						p->forceZeroX=1;//force x to zero
+          else if(strcmp(str,"ZEROY\n")==0)
+						p->forceZeroY=1;//force y to zero
         }
     }
   //check the fit type
@@ -151,6 +161,12 @@ void importData(data * d, parameters * p)
           )
             {
               lineValid=1;
+
+              //check variable and data values for NaN
+              for(i=0;i<p->numVar+2;i++)
+                if(i<POWSIZE)
+                  if(d->x[i][d->lines]!=d->x[i][d->lines])
+                    lineValid=0;
 
               //check variable values against limits
               for(i=0;i<p->numVar;i++)
@@ -252,6 +268,13 @@ void importData(data * d, parameters * p)
                   else
                     printf("WARNING: could not properly set data lower limit.\n");
                 }
+              if(strcmp(str2,"SET_CI_DELTA")==0)
+                {
+                  if(sscanf(str3,"%Lf",&p->ciDelta))
+                    printf("Set confidence interval delta value to: %0.3LE\n",p->ciDelta);
+                  else
+                    printf("WARNING: could not properly set confidence interval delta value.\n");
+                }
             }
           else
             {
@@ -284,7 +307,7 @@ void importData(data * d, parameters * p)
         }
     }
   fclose(inp);
-  
+
   if(d->lines<1)
     {
       printf("ERROR: no data could be read from the input file.\n");
@@ -294,9 +317,9 @@ void importData(data * d, parameters * p)
     }
   else if(p->verbose<1)
     {
-      printf("Successfully read data file: %s\n%i lines of data used.\n",p->filename,d->lines);
+      printf("Successfully read data file: %s\n%i line(s) of data used.\n",p->filename,d->lines);
       if(invalidLines>0)
-        printf("%i lines of data skipped (outside of fit region limits).\n",invalidLines);
+        printf("%i line(s) of data skipped (outside of fit region limits).\n",invalidLines);
     }
   
 }

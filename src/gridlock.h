@@ -26,7 +26,7 @@ typedef struct
   char plotMode[256];//the plotting style to be used
   int plotCI;//0=don't plot confidence interval, 1=plot it
   int numVar;
-  long double ulimit[POWSIZE],llimit[POWSIZE];//uppder and lower limits for variable values
+  long double ulimit[POWSIZE],llimit[POWSIZE];//upper and lower limits for variable values
   long double dllimit,dulimit;//upper and lower limits for data values
   int verbose;//0=print everything,1=print vertex location only
   int readWeights;//0=don't read data weights from file,1=read weights from file
@@ -34,6 +34,9 @@ typedef struct
   long double uniWeightVal;//value specified for uniform weights
   int filter;//0=no filter,1=linear filter
   double filterSigma;//sigma value to be used for filter
+  int forceZeroX,forceZeroY,forceZeroZ;//whether or not to attempt forcing the fitted minimum to zero for x,y,z
+  int numCIEvalPts; //number of points to evaluate the confidence interval bounds at (where applicable)
+  long double CIEvalPts[100]; //array of x values at which to evaluate the confidence interval at
 }parameters;
 
 typedef struct
@@ -56,6 +59,8 @@ typedef struct
   double max_m,min_m;//maximum and minimum values
   double ciData[POWSIZE][POWSIZE][MAXFILELENGTH];//array containing confidence interval data points to be plotted, indexed by plot # then variable # then data point #
   double fit[POWSIZE][POWSIZE][MAXFILELENGTH];//array containing fit data to be plotted, indexed by plot # then variable # then data point #
+  int numFitPlotPts;//number of data points reserved for plotting fit data
+  int numFitPtsPerVar;
   int plotDataSize[POWSIZE];
   int numPlots;
   int axisLabelStyle[POWSIZE][POWSIZE];//0=normal,1=scientific notation

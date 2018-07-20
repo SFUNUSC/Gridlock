@@ -60,6 +60,8 @@ typedef struct _GNUPLOT_CTRL_ {
     int       nplots ;
     /** Current plotting style */
     char      pstyle[32] ;
+    /** Smooth plot? */
+    int       smooth;
     /** Plotting color */
     char      col[32] ;
     int       colSet;
@@ -150,6 +152,10 @@ void gnuplot_cmd(gnuplot_ctrl *  handle, char const *  cmd, ...);
  */
 /*--------------------------------------------------------------------------*/
 void gnuplot_setstyle(gnuplot_ctrl * h, char * plot_style);
+
+//Functions for seting smooth property of output plots
+//Added by J. Williams
+void gnuplot_setsmooth(gnuplot_ctrl * h, int val);
 
 //Functions for seting color of output plots
 //Added by J. Williams
@@ -264,6 +270,17 @@ void gnuplot_plot_xy(
     char            *   title
 ) ;
 
+void gnuplot_plot_xygrid(
+    gnuplot_ctrl    *   handle,
+    double          *   x,
+    double          *   y,
+    int                 n,
+    int                 ndim,
+    int                 nskip,
+    int                 nblockskip,
+    char            *   title
+) ;
+
 /*-------------------------------------------------------------------------*/
 /**
   @brief    Plot a 3d graph from a list of points.
@@ -304,6 +321,18 @@ void gnuplot_plot_xyz(
     double          *   y,
     double          *   z,
     int                 n,
+    char            *   title
+) ;
+
+void gnuplot_plot_xyzgrid(
+    gnuplot_ctrl    *   handle,
+    double          *   x,
+    double          *   y,
+    double          *   z,
+    int                 n,
+    int                 ndim,
+    int                 nskip,
+    int                 nblockskip,
     char            *   title
 ) ;
 
