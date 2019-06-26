@@ -97,18 +97,24 @@ void importData(data * d, parameters * p)
     p->numVar=1;
   else if(strcmp(p->fitType,"poly3")==0)
     p->numVar=1;
+  else if(strcmp(p->fitType,"poly4")==0)
+    p->numVar=1;
   else if(strcmp(p->fitType,"2parpoly3")==0)
     p->numVar=2;
   else if(strcmp(p->fitType,"")==0)
     {
       printf("ERROR: a fit type must be specified.\nMake sure to include a line in the file with the format\n\nFIT  type\n\nwhere 'type' is a valid fit type (eg. 'par1').\n");
-      printf("\nValid fit types are:\n\nlin (line)\nlin_deming (line with errors in x)\npoly1 (1st order polynomial)\npoly2 (2nd order polynomial)\npoly3 (3rd order polynomial)\npar1 (2nd order polynomial)\npar2 (2nd order bivariate polynomial)\npar3 (2nd order trivariate polynomial)\n2parpoly3 (3rd order bivariate polynomial)\n");
+      printf("\nValid fit types are:\n\nlin (line)\nlin_deming (line with errors in x)\npoly1 (1st order polynomial)\n");
+      printf("poly2 (2nd order polynomial)\npoly3 (3rd order polynomial)\npoly4 (4th order polynomial)\npar1 (2nd order polynomial)\n");
+      printf("par2 (2nd order bivariate polynomial)\npar3 (2nd order trivariate polynomial)\n2parpoly3 (3rd order bivariate polynomial)\n");
       exit(-1);
     }
   else
     {
       printf("ERROR: invalid fit type '%s' specified.\n",p->fitType);
-      printf("\nValid fit types are:\n\nlin (line)\nlin_deming (line with errors in x)\npoly1 (1st order polynomial)\npoly2 (2nd order polynomial)\npoly3 (3rd order polynomial)\npar1 (2nd order polynomial)\npar2 (2nd order bivariate polynomial)\npar3 (2nd order trivariate polynomial)\n2parpoly3 (3rd order bivariate polynomial)\n");
+      printf("\nValid fit types are:\n\nlin (line)\nlin_deming (line with errors in x)\npoly1 (1st order polynomial)\n");
+      printf("poly2 (2nd order polynomial)\npoly3 (3rd order polynomial)\npoly4 (4th order polynomial)\npar1 (2nd order polynomial)\n");
+      printf("par2 (2nd order bivariate polynomial)\npar3 (2nd order trivariate polynomial)\n2parpoly3 (3rd order bivariate polynomial)\n");
       exit(-1);
     }
     
@@ -129,7 +135,8 @@ void importData(data * d, parameters * p)
     }
   fclose(inp);
   
-  //generate the appropriate 1-sigma confidence level
+  //by default, use the appropriate 1-sigma confidence level
+  strcpy(p->ciSigmaDesc,"1-sigma (68.3%)");
   if(p->numVar==1)
   	p->ciDelta=1.00;
   else if(p->numVar==2)
@@ -207,74 +214,154 @@ void importData(data * d, parameters * p)
               else
                 invalidLines++;
             }
-          else if((p->numVar>0)&&(sscanf(str,"%s %Lf %Lf %Lf %Lf %Lf",str2,&d->x[0][d->lines],
+          else if(sscanf(str,"%s %s",str2,str3)>=2)
+            {
+              if((p->numVar>0)&&(sscanf(str,"%s %Lf %Lf %Lf %Lf %Lf",str2,&d->x[0][d->lines],
               &d->x[1][d->lines],&d->x[2][d->lines],&d->x[3][d->lines],
               &d->x[4][d->lines])==p->numVar+1))
-            {
-              if(strcmp(str2,"UPPER_LIMITS")==0)
                 {
-                  for(i=0;i<p->numVar;i++)
-                    if(i<POWSIZE)
-                      p->ulimit[i]=d->x[i][d->lines];
-                  if(p->verbose<1)
+                  if(strcmp(str2,"UPPER_LIMITS")==0)
                     {
-                      printf("Set fit region upper limits to [");
                       for(i=0;i<p->numVar;i++)
-                        printf(" %0.3LE ",p->ulimit[i]);
-                      printf("]\n");
+                        if(i<POWSIZE)
+                          p->ulimit[i]=d->x[i][d->lines];
+                      if(p->verbose<1)
+                        {
+                          printf("Set fit region upper limits to [");
+                          for(i=0;i<p->numVar;i++)
+                            printf(" %0.3LE ",p->ulimit[i]);
+                          printf("]\n");
+                        }
+                    }
+                  if(strcmp(str2,"LOWER_LIMITS")==0)
+                    { 
+                      for(i=0;i<p->numVar;i++)
+                        if(i<POWSIZE)
+                          p->llimit[i]=d->x[i][d->lines];
+                      if(p->verbose<1)
+                        {
+                          printf("Set fit region lower limits to [");
+                          for(i=0;i<p->numVar;i++)
+                            printf(" %0.3LE ",p->llimit[i]);
+                          printf("]\n");
+                        }
                     }
                 }
-              if(strcmp(str2,"LOWER_LIMITS")==0)
-                { 
-                  for(i=0;i<p->numVar;i++)
-                    if(i<POWSIZE)
-                      p->llimit[i]=d->x[i][d->lines];
-                  if(p->verbose<1)
+              if(sscanf(str,"%s %s",str2,str3)==2)
+                {
+                  
+                  if(strcmp(str2,"PLOT")==0)
                     {
-                      printf("Set fit region lower limits to [");
-                      for(i=0;i<p->numVar;i++)
-                        printf(" %0.3LE ",p->llimit[i]);
-                      printf("]\n");
+                      p->plotData=1;
+                      strcpy(p->plotMode,str3);
+                      if(p->verbose<1)
+                        printf("Will plot data using mode: %s\n",p->plotMode);
+                    }
+                  if(strcmp(str2,"DATA_TYPE")==0)
+                    {
+                      strcpy(p->dataType,str3);
+                      if(p->verbose<1)
+                        if(strcmp(p->dataType,"chisq")==0)
+                          printf("Will treat data points as chi-squared values.\n");
+                    }
+                  if(strcmp(str2,"DATA_UPPER_LIMIT")==0)
+                    {
+                      if(sscanf(str3,"%Lf",&p->dulimit))
+                        printf("Set data upper limit to: %0.3LE\n",p->dulimit);
+                      else
+                        {
+                          printf("ERROR: could not properly set data upper limit (DATA_UPPER_LIMIT option).\n");
+                          exit(-1);
+                        }
+                    }
+                  if(strcmp(str2,"DATA_LOWER_LIMIT")==0)
+                    {
+                      if(sscanf(str3,"%Lf",&p->dllimit))
+                        printf("Set data lower limit to: %0.3LE\n",p->dllimit);
+                      else
+                        {
+                          printf("ERROR: could not properly set data lower limit (DATA_LOWER_LIMIT option).\n");
+                          exit(-1);
+                        }
+                    }
+                  if(strcmp(str2,"SET_CI_DELTA")==0)
+                    {
+                      if(sscanf(str3,"%Lf",&p->ciDelta))
+                        {
+                          printf("Set confidence interval delta value to: %0.3LE\n",p->ciDelta);
+                          sprintf(p->ciSigmaDesc,"custom (delta=%Lf)",p->ciDelta);//indicate custom confidence interval
+                        }
+                      else
+                        {
+                          printf("ERROR: could not properly set confidence interval delta value (SET_CI_DELTA option).\n");
+                          exit(-1);
+                        }
+                        
+                    }
+                  if(strcmp(str2,"SET_CI_SIGMA")==0)
+                    {
+                      
+                      if(strcmp(str3,"1")==0)
+                        {
+                          if(p->numVar==1)
+                            p->ciDelta=1.00;
+                          else if(p->numVar==2)
+                            p->ciDelta=2.30;
+                          else if(p->numVar==3)
+                            p->ciDelta=3.53;
+                          else
+                            p->ciDelta=0.00;
+                          printf("Set confidence interval to 1-sigma (68.3%%), delta value: %0.3LE\n",p->ciDelta);
+                          strcpy(p->ciSigmaDesc,"1-sigma (68.3%)");
+                        }
+                      else if(strcmp(str3,"2")==0)
+                        {
+                          if(p->numVar==1)
+                            p->ciDelta=4.00;
+                          else if(p->numVar==2)
+                            p->ciDelta=6.17;
+                          else if(p->numVar==3)
+                            p->ciDelta=8.02;
+                          else
+                            p->ciDelta=0.00;
+                          printf("Set confidence interval to 2-sigma (95.4%%), delta value: %0.3LE\n",p->ciDelta);
+                          strcpy(p->ciSigmaDesc,"2-sigma (95.4%)");
+                        }
+                      else if(strcmp(str3,"3")==0)
+                        {
+                          if(p->numVar==1)
+                            p->ciDelta=9.00;
+                          else if(p->numVar==2)
+                            p->ciDelta=11.8;
+                          else if(p->numVar==3)
+                            p->ciDelta=14.2;
+                          else
+                            p->ciDelta=0.00;
+                          printf("Set confidence interval to 3-sigma (99.73%%), delta value: %0.3LE\n",p->ciDelta);
+                          strcpy(p->ciSigmaDesc,"3-sigma (99.73%)");
+                        }
+                      else if(strcmp(str3,"90%")==0)
+                        {
+                          if(p->numVar==1)
+                            p->ciDelta=2.71;
+                          else if(p->numVar==2)
+                            p->ciDelta=4.61;
+                          else if(p->numVar==3)
+                            p->ciDelta=6.25;
+                          else
+                            p->ciDelta=0.00;
+                          printf("Set confidence interval to 90%%, delta value: %0.3LE\n",p->ciDelta);
+                          strcpy(p->ciSigmaDesc,"90%");
+                        }
+                      else
+                        {
+                          printf("ERROR: Invalid parameter for SET_CI_SIGMA: %s\nValid parameters: 1, 2, 3, 90%%\n",str3);
+                          exit(-1);
+                        }
+                        
                     }
                 }
-            }
-          else if(sscanf(str,"%s %s",str2,str3)==2)
-            {
-              if(strcmp(str2,"PLOT")==0)
-                {
-                  p->plotData=1;
-                  strcpy(p->plotMode,str3);
-                  if(p->verbose<1)
-                    printf("Will plot data using mode: %s\n",p->plotMode);
-                }
-              if(strcmp(str2,"DATA_TYPE")==0)
-                {
-                  strcpy(p->dataType,str3);
-                  if(p->verbose<1)
-                    if(strcmp(p->dataType,"chisq")==0)
-                      printf("Will treat data points as chi-squared values.\n");
-                }
-              if(strcmp(str2,"DATA_UPPER_LIMIT")==0)
-                {
-                  if(sscanf(str3,"%Lf",&p->dulimit))
-                    printf("Set data upper limit to: %0.3LE\n",p->dulimit);
-                  else
-                    printf("WARNING: could not properly set data upper limit.\n");
-                }
-              if(strcmp(str2,"DATA_LOWER_LIMIT")==0)
-                {
-                  if(sscanf(str3,"%Lf",&p->dllimit))
-                    printf("Set data lower limit to: %0.3LE\n",p->dllimit);
-                  else
-                    printf("WARNING: could not properly set data lower limit.\n");
-                }
-              if(strcmp(str2,"SET_CI_DELTA")==0)
-                {
-                  if(sscanf(str3,"%Lf",&p->ciDelta))
-                    printf("Set confidence interval delta value to: %0.3LE\n",p->ciDelta);
-                  else
-                    printf("WARNING: could not properly set confidence interval delta value.\n");
-                }
+              
             }
           else
             {
@@ -284,8 +371,11 @@ void importData(data * d, parameters * p)
                   if(p->verbose<1)
                     printf("Will plot data.\n");
                 }
-              else if(p->verbose<1)
-                printf("WARNING: Improperly formatted data on line %i of the input file.\n",linenum+1);
+              else if((strcmp(str,"PARAMETERS\n")!=0)&&(strcmp(str,"COEFFICIENTS\n")!=0)&&(strcmp(str,"WEIGHTED\n")!=0)&&
+                      (strcmp(str,"WEIGHT\n")!=0)&&(strcmp(str,"WEIGHTS\n")!=0)&&(strcmp(str,"UNWEIGHTED\n")!=0)&&
+                      (strcmp(str,"ZEROX\n")!=0)&&(strcmp(str,"ZEROY\n")!=0))
+                if(p->verbose<1)
+                  printf("WARNING: Improperly formatted data on line %i of the input file.\nLine content: %s",linenum+1,str);
             }
           if((p->numVar==1)&&(sscanf(str,"%s %s",str2,str3)==2))//workaround to allow plotting lines to be read when using 1 free parameter
             {

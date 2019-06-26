@@ -3,6 +3,11 @@
 Maintainer: Jonathan Williams
 
 
+## Introduction
+
+Are you the type of person who needs to fit a chisq surface in 2 variables to a 3rd order polynomial and then find the local minimum and confidence interval in each variable even though one of the variables is bounded to zero?  Or maybe you just want to fit a line to some data and have the x-intercept be automatically displayed?  Boy, do I have a program for you!
+
+
 ## Description
 
 Gridlock is a program for fitting grids of data points with various functions and finding fit properties (eg. confidence intervals, intercepts, vertices).  Fitting routines are available for data with up to 3 free parameters.  Example data is included in the files in the `sample` directory.
@@ -18,7 +23,8 @@ Data files must contain a line specifying the fit function, formatted 'FIT type'
 * Various polynomial type fitting functions implemented.
 * Simple ASCII data file format (compatible with gnuplot, excel, etc.).
 * Plotting of fits is available via a built-in interface to gnuplot (program will still compile and run if gnuplot is not present, but plotting will be unavailable).
-
+* Lots of esoteric extra functionality added in an ad-hoc manner as the maintainter sees fit.
+* Written in C because reasons.
 
 ## How to Install
 
@@ -39,6 +45,7 @@ Tested using gcc and GNU make on Ubuntu 14.04/16.04, Scientific Linux/CentOS 6, 
 |**lin_deming** | line (Deming regression) | f(x) = a1\*x + a2 with errors in x (see note below)|
 |**par1** | parabola (2nd order polynomial) | f(x) = a1\*x^2 + a2\*x + a3|
 |**poly3** | cubic polynomial | f(x) = a1\*x^3 + a2\*x^2 + a3\*x + a4|
+|**poly4** | quartic polynomial | f(x) = a1\*x^4 + a2\*x^3 + a3\*x^2 + a4\*x + a5|
 
 NOTE: The **lin\_deming** function can take an optional parameter specifying the ratio of variances in y and x data.  Default value is 1 (errors perpendicular to line).  The parameter is specified on the fit fucntion line (eg. 'FIT lin\_deming 3' for variance in y data 3x that of x data). 
 
@@ -76,10 +83,11 @@ Add these options (eg. 'PLOT 1d') as a single line anywhere in the data file to 
 | UPPER_LIMITS value1 value2 value3 | Upper fit limits for each variable (specify as many values as there are variables).  Use with LOWER_LIMITS to specify a fit range.|
 | DATA_LOWER_LIMIT value | Lower fit limit for data values.  Use with DATA_UPPER_LIMIT to specify a fit range for data values.  This option can be used to filter outlier data.|
 | DATA_UPPER_LIMIT value | Upper fit limit for data values.  Use with DATA_LOWER_LIMIT to specify a fit range for data values.  This option can be used to filter outlier data.|
-| ZEROX | When fitting using the *par2* function with chisq data, show the fit result assuming a minimum in x at x=0.|
-| ZEROY | When fitting using the *par2* function with chisq data, show the fit result assuming a minimum in y at y=0.|
+| ZEROX | When fitting using the *par2* or *2parpoly3* function with chisq data, show the fit result assuming a minimum in x at x=0.|
+| ZEROY | When fitting using the *par2* or *2parpoly3* function with chisq data, show the fit result assuming a minimum in y at y=0.|
 | EVAL_CI value | When fitting a function (such as 'lin') which provides a confidence interval, evaluate the bounds of the confidence interval for the given value of the independent variable.|
-| SET_CI_DELTA value | When fitting chi-square data, manually set the delta value used to evaluate uncertainties (by default, delta is set to the 1-sigma bound ie. 1.00 for 1 parameter, 2.30 for 2 parameters, etc.).|
+| SET_CI_SIGMA value | When fitting chi-square data, manually set the sigma value used to evaluate uncertainties (valid values are 1, 2, 3, 90%).  The program will then handle the appropriate confidence bounds for the number of free parameters used.  Default value is 1-sigma.|
+| SET_CI_DELTA value | For people who know what they're doing and for whom SET_CI_SIGMA isn't enough.  When fitting chi-square data, manually set the delta value used to evaluate confidence bounds (by default, delta is set to the 1-sigma bound ie. 1.00 for 1 parameter, 2.30 for 2 parameters, etc.).|
 
 ## Acknowledgments
 

@@ -10,6 +10,146 @@ long double eval2ParPoly3(long double x,long double y, const fit_results * fr)
 					+ fr->a[6]*x*y + fr->a[7]*x + fr->a[8]*y + fr->a[9];
 }
 
+//determine the minimum and maximum bounds in each variable by generating 2 
+//polynomials, one in each variable
+//done by taking the minimum value of the fit function available 
+//for various values of the variable of interest (projecting the 
+//minimum values on the variable axis)
+//fixZero - 0: don't fix minimum to 0, 1: fix minimum in x to 0, 
+//             2: fix minimum in y to 0, 3: fix minimum in x and y to 0 
+void fit2ParPoly3ChisqConf(const data * d, const parameters * p, fit_results * fr, int fixZero)
+{
+  int i,j;
+	
+  //allocate fit structures
+  parameters *svarp=(parameters*)calloc(1,sizeof(parameters));
+  data *svard=(data*)calloc(1,sizeof(data));
+  fit_results *svarfr=(fit_results*)calloc(1,sizeof(fit_results));
+  plot_data *svarpd=(plot_data*)calloc(1,sizeof(plot_data));
+  //setup fit
+  svarp->numVar=1;
+  svarp->ciDelta=p->ciDelta;
+  strcpy(svarp->plotMode,"1d");
+  if(strcmp(p->dataType,"chisq")==0)
+    strcpy(svarp->dataType,"chisq");
+  	
+	long double val,a,b,c,sqrtval;
+	for(i=0;i<2;i++)//variable #
+		{
+			svard->lines=0;
+			for(j=0;j<=100;j++)//number of data points to compute
+				{
+					val=d->min_x[i] + (j/100.)*(d->max_x[i] - d->min_x[i]);
+					if(i==0)
+						{
+							a=3.*fr->a[1];
+							b=2.*fr->a[3]*val + 2.*fr->a[5];
+							c=fr->a[2]*val*val + fr->a[6]*val + fr->a[8];
+						}
+					else
+						{
+							a=3.*fr->a[0];
+							b=2.*fr->a[2]*val + 2.*fr->a[4];
+							c=fr->a[3]*val*val + fr->a[6]*val + fr->a[7];
+						}
+					sqrtval=b*b - 4.*a*c;			
+					if(sqrtval==0)
+						{
+							if(i==0)
+								svard->x[1][svard->lines]=eval2ParPoly3(val,-1.*b/(2.*a),fr);
+							else
+								svard->x[1][svard->lines]=eval2ParPoly3(-1.*b/(2.*a),val,fr);
+						}
+					else if(sqrtval>0)
+						{
+							if(i==0)
+								{
+									if(eval2ParPoly3(val,(-1.*b - sqrt(sqrtval))/(2.*a),fr)>eval2ParPoly3(val,(-1.*b + sqrt(sqrtval))/(2.*a),fr))
+										svard->x[1][svard->lines]=eval2ParPoly3(val,(-1.*b + sqrt(sqrtval))/(2.*a),fr);
+									else
+										svard->x[1][svard->lines]=eval2ParPoly3(val,(-1.*b - sqrt(sqrtval))/(2.*a),fr);
+								}
+							else
+								{
+									if(eval2ParPoly3((-1.*b - sqrt(sqrtval))/(2.*a),val,fr)>eval2ParPoly3((-1.*b + sqrt(sqrtval))/(2.*a),val,fr))
+										svard->x[1][svard->lines]=eval2ParPoly3((-1.*b + sqrt(sqrtval))/(2.*a),val,fr);
+									else
+										svard->x[1][svard->lines]=eval2ParPoly3((-1.*b - sqrt(sqrtval))/(2.*a),val,fr);
+								}
+						}//don't take any action (skip data point) if the roots are not real
+					
+					if(sqrtval>=0)
+						{
+							svard->x[0][svard->lines]=val;
+							svard->x[2][svard->lines]=1.;//set weight
+							svard->lines++;
+						}
+					
+					
+				}
+				//fit and find critical points of this data
+				generateSums(svard,svarp);
+				fitPoly3(svarp,svard,svarfr,svarpd,0);//fit but don't print data
+
+        //compute confidence interval with variable fixed to 0 if requested
+        if(strcmp(p->dataType,"chisq")==0)
+          if((fixZero==i+1)||(fixZero==3))
+            fitPoly3ChisqConf(svarp,svarfr,0.);
+
+				//save critical point corresponding to minimum
+        if((fixZero==i+1)||(fixZero==3))
+          fr->fitVert[i]=0.;
+				else if(evalPoly3(svarfr->fitVert[0],svarfr)<evalPoly3(svarfr->fitVert[1],svarfr))
+					fr->fitVert[i]=svarfr->fitVert[0];
+				else
+					fr->fitVert[i]=svarfr->fitVert[1];
+				//save confidence bounds, if applicable
+				if((strcmp(p->dataType,"chisq")==0)&&(svarfr->vertBoundsFound==1))
+					{
+						fr->vertBoundsFound=1;
+						fr->vertLBound[i]=svarfr->vertLBound[0];
+						fr->vertUBound[i]=svarfr->vertUBound[0];
+					}
+				else
+					fr->vertBoundsFound=0;
+				
+					
+			}
+	
+	//free fit structures
+	free(svarp);
+	free(svard);
+	free(svarfr);
+	free(svarpd);
+}
+
+void printFitVertex2ParPoly3(const data * d, const parameters * p, const fit_results * fr)
+{
+  if(fr->vertBoundsFound==1)
+    {
+      //these values were calculated at long double precision, 
+      //check if they are the same to within float precision
+      if ((float)(fr->fitVert[0]-fr->vertLBound[0])==(float)(fr->vertUBound[0]-fr->fitVert[0]))
+        printf("x0 = %LE +/- %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
+      else
+        printf("x0 = %LE + %LE - %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0],fr->fitVert[0]-fr->vertLBound[0]);
+    }
+  else
+    printf("x0 = %LE\n",fr->fitVert[0]);
+
+  if(fr->vertBoundsFound==1)
+    {
+      if ((float)(fr->fitVert[1]-fr->vertLBound[1])==(float)(fr->vertUBound[1]-fr->fitVert[1]))
+        printf("y0 = %LE +/- %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1]);
+      else
+        printf("y0 = %LE + %LE - %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1],fr->fitVert[1]-fr->vertLBound[1]);
+    }
+  else
+    printf("y0 = %LE\n",fr->fitVert[1]);
+  
+  printf("\nf(x0,y0) = %LE\n",fr->vertVal);
+}
+
 //prints fit data
 void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr)
 {
@@ -35,7 +175,7 @@ void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr
     }
   
   printf("\nFIT RESULTS\n-----------\n");
-  printf("Uncertainties reported at 1-sigma.\n");
+  printf("Fit parameter uncertainties reported at 1-sigma.\n");
   printf("Fit function: f(x,y,z) = a1*x^3 + a2*y^3 + a3*x^2*y\n                       + a4*x*y^2 + a5*x^2 + a6*y^2\n                       + a7*x*y + a8*x + a9*y + a10\n\n");
   //printf("Best chisq (fit): %0.3Lf\nBest chisq/NDF (fit): %0.3Lf\n\n",fr->chisq,fr->chisq/fr->ndf);
   printf("Coefficients from fit: a1 = %LE +/- %LE\n",fr->a[0],fr->aerr[0]);
@@ -44,9 +184,9 @@ void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr
   printf("\n");
   
   //print local minimum and confidence bounds (if necessary)
-  printf("Local minimum:\n");
 	if((strcmp(p->dataType,"chisq")==0)&&(fr->vertBoundsFound==1))
 		{
+      printf("Local minimum with %s confidence interval:\n",p->ciSigmaDesc);
 			if((float)(fr->vertUBound[0]-fr->fitVert[0])==(float)(fr->fitVert[0]-fr->vertLBound[0]))
 				printf("x = %LE +/- %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
 			else
@@ -57,7 +197,11 @@ void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr
 				printf("y = %LE + %LE - %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1],fr->fitVert[1]-fr->vertLBound[1]);
 		}
 	else
-		printf("x = %LE, y = %LE\n",fr->fitVert[0],fr->fitVert[1]);
+    {
+      printf("Local minimum:\n");
+      printf("x = %LE, y = %LE\n",fr->fitVert[0],fr->fitVert[1]);
+    }
+		
     
 }
 
@@ -181,8 +325,9 @@ void fit2ParPoly3(const parameters * p, const data * d, fit_results * fr, plot_d
 	//solve system of equations and assign values
 	if(!(solve_lin_eq(&linEq)==1))
 		{
-			printf("ERROR: Could not determine fit parameters.\n");
+			printf("ERROR: Could not determine fit parameters (2parpoly3).\n");
 			printf("Perhaps there are not enough data points to perform a fit?\n");
+      printf("Otherwise you can also try adjusting the fit range using the UPPER_LIMITS and LOWER_LIMITS options.\n");
 			exit(-1);
 		}
 
@@ -219,109 +364,93 @@ void fit2ParPoly3(const parameters * p, const data * d, fit_results * fr, plot_d
     fr->aerr[i]=(long double)sqrt((double)(fr->covar[i][i]));
 	
 	
+	fit2ParPoly3ChisqConf(d,p,fr,0);
 	
-	//determine the minimum and bounds in each variable by generating 2 
-	//polynomials, one in each variable
-	//done by taking the minimum value of the fit function available 
-	//for various values of the variable of interest (projecting the 
-	//minimum values on the variable axis)
-	
-  //allocate fit structures
-  parameters *svarp=(parameters*)calloc(1,sizeof(parameters));
-  data *svard=(data*)calloc(1,sizeof(data));
-  fit_results *svarfr=(fit_results*)calloc(1,sizeof(fit_results));
-  plot_data *svarpd=(plot_data*)calloc(1,sizeof(plot_data));
-  //setup fit
-  svarp->numVar=1;
-  svarp->ciDelta=2.30;//1-sigma, 2 parameters
-  strcpy(svarp->plotMode,"1d");
-  if(strcmp(p->dataType,"chisq")==0)
-    strcpy(svarp->dataType,"chisq");
-  	
-	long double val,a,b,c,sqrtval;
-	for(i=0;i<2;i++)//variable #
-		{
-			svard->lines=0;
-			for(j=0;j<=100;j++)//number of data points to compute
-				{
-					val=d->min_x[i] + (j/100.)*(d->max_x[i] - d->min_x[i]);
-					if(i==0)
-						{
-							a=3.*fr->a[1];
-							b=2.*fr->a[3]*val + 2.*fr->a[5];
-							c=fr->a[2]*val*val + fr->a[6]*val + fr->a[8];
-						}
-					else
-						{
-							a=3.*fr->a[0];
-							b=2.*fr->a[2]*val + 2.*fr->a[4];
-							c=fr->a[3]*val*val + fr->a[6]*val + fr->a[7];
-						}
-					sqrtval=b*b - 4.*a*c;			
-					if(sqrtval==0)
-						{
-							if(i==0)
-								svard->x[1][svard->lines]=eval2ParPoly3(val,-1.*b/(2.*a),fr);
-							else
-								svard->x[1][svard->lines]=eval2ParPoly3(-1.*b/(2.*a),val,fr);
-						}
-					else if(sqrtval>0)
-						{
-							if(i==0)
-								{
-									if(eval2ParPoly3(val,(-1.*b - sqrt(sqrtval))/(2.*a),fr)>eval2ParPoly3(val,(-1.*b + sqrt(sqrtval))/(2.*a),fr))
-										svard->x[1][svard->lines]=eval2ParPoly3(val,(-1.*b + sqrt(sqrtval))/(2.*a),fr);
-									else
-										svard->x[1][svard->lines]=eval2ParPoly3(val,(-1.*b - sqrt(sqrtval))/(2.*a),fr);
-								}
-							else
-								{
-									if(eval2ParPoly3((-1.*b - sqrt(sqrtval))/(2.*a),val,fr)>eval2ParPoly3((-1.*b + sqrt(sqrtval))/(2.*a),val,fr))
-										svard->x[1][svard->lines]=eval2ParPoly3((-1.*b + sqrt(sqrtval))/(2.*a),val,fr);
-									else
-										svard->x[1][svard->lines]=eval2ParPoly3((-1.*b - sqrt(sqrtval))/(2.*a),val,fr);
-								}
-						}//don't take any action (skip data point) if the roots are not real
-					
-					if(sqrtval>=0)
-						{
-							svard->x[0][svard->lines]=val;
-							svard->x[2][svard->lines]=1.;//set weight
-							svard->lines++;
-						}
-					
-					
-				}
-				//fit and find critical points of this data
-				generateSums(svard,svarp);
-				fitPoly3(svarp,svard,svarfr,svarpd,0);//fit but don't print data
-				//save critical point corresponding to minimum
-				if(evalPoly3(svarfr->fitVert[0],svarfr)<evalPoly3(svarfr->fitVert[1],svarfr))
-					fr->fitVert[i]=svarfr->fitVert[0];
-				else
-					fr->fitVert[i]=svarfr->fitVert[1];
-				//save confidence bounds, if applicable
-				if((strcmp(p->dataType,"chisq")==0)&&(svarfr->vertBoundsFound==1))
-					{
-						fr->vertBoundsFound=1;
-						fr->vertLBound[i]=svarfr->vertLBound[0];
-						fr->vertUBound[i]=svarfr->vertUBound[0];
-					}
-				else
-					fr->vertBoundsFound=0;
-				
-					
-			}
-	
-	//free fit structures
-	free(svarp);
-	free(svard);
-	free(svarfr);
-	free(svarpd);
 
 	//print results
   if(print==1)
-		print2ParPoly3(d,p,fr);
+    print2ParPoly3(d,p,fr);
+  
+  //check zero bounds
+  if(strcmp(p->dataType,"chisq")==0)
+    {
+      if((fr->fitVert[0]<0.) || (p->forceZeroX==1))
+        {
+          if((fr->fitVert[1]>=0.) || (p->forceZeroX==1))
+            {
+              //make a copy of the fit results to work on
+              fit_results *temp1=(fit_results*)calloc(1,sizeof(fit_results));
+              memcpy(temp1,fr,sizeof(fit_results));
+              //compute fit vertex assuming x is fixed to 0 (from 1st derivative condition)
+              temp1->fitVert[0]=0.;
+              long double yVertCandidate = (-2.*temp1->a[5] + sqrt((2.*temp1->a[5])*(2.*temp1->a[5]) - 12.*temp1->a[1]*temp1->a[8]))/(6.*temp1->a[1]);
+              //check concavity (from 2nd derivative condition)
+              if(yVertCandidate > (-2.*temp1->a[5]/(6.*temp1->a[1])))
+                temp1->fitVert[1] = yVertCandidate;
+              else
+                temp1->fitVert[1] = (-2.*temp1->a[5] - sqrt((2.*temp1->a[5])*(2.*temp1->a[5]) - 12.*temp1->a[1]*temp1->a[8]))/(6.*temp1->a[1]);
+              temp1->vertVal=eval2ParPoly3(temp1->fitVert[0],temp1->fitVert[1],temp1);
+              //fit confidence interval to get bound for x
+              fit2ParPoly3ChisqConf(d,p,temp1,1);
+              temp1->vertLBound[0]=-1.*temp1->vertUBound[0]; //mirror bounds in x
+              //determine confidence in y by fitting the 3rd order polynomial at x=0
+              fit_results *temp2=(fit_results*)calloc(1,sizeof(fit_results));
+              //map fit parameters into a 3rd order polynomial
+              temp2->a[0]=temp1->a[1];
+              temp2->a[1]=temp1->a[5];
+              temp2->a[2]=temp1->a[8];
+              temp2->a[3]=temp1->a[9];
+              //fit confidence interval of the 3rd order polynomial to get bound for y (using ciDelta assuming 2 variables)
+              fitPoly3ChisqConf(p,temp2,temp1->fitVert[1]);
+              temp1->vertLBound[1]=temp2->vertLBound[0];
+              temp1->vertUBound[1]=temp2->vertUBound[0];
+              free(temp2);
+              if(print==1)
+                {
+                  printf("\nAssuming minimum at zero for x,\n");
+                  printFitVertex2ParPoly3(d,p,temp1);
+                }
+              free(temp1);
+            }
+          
+        }
+      else if((fr->fitVert[1]<0.) || (p->forceZeroY==1)) //implies fitVert[0]>=0.
+        {
+          //make a copy of the fit results to work on
+          fit_results *temp1=(fit_results*)calloc(1,sizeof(fit_results));
+          memcpy(temp1,fr,sizeof(fit_results));
+          //compute fit vertex assuming y is fixed to 0 (from 1st derivative condition)
+          temp1->fitVert[1]=0.;
+          long double xVertCandidate = (-2.*temp1->a[4] + sqrt((2.*temp1->a[4])*(2.*temp1->a[4]) - 12.*temp1->a[0]*temp1->a[7]))/(6.*temp1->a[0]);
+          if(xVertCandidate > (-2.*temp1->a[4]/(6.*temp1->a[0])))
+            temp1->fitVert[0] = xVertCandidate;
+          else
+            temp1->fitVert[0] = (-2.*temp1->a[4] - sqrt((2.*temp1->a[4])*(2.*temp1->a[4]) - 12.*temp1->a[0]*temp1->a[7]))/(6.*temp1->a[0]);
+          temp1->vertVal=eval2ParPoly3(temp1->fitVert[0],temp1->fitVert[1],temp1);
+          //fit confidence interval to get bound for y
+          fit2ParPoly3ChisqConf(d,p,temp1,2);
+          temp1->vertLBound[1]=-1.*temp1->vertUBound[1]; //mirror bounds in y
+          //determine confidence in x by fitting the 3rd order polynomial at y=0
+          fit_results *temp2=(fit_results*)calloc(1,sizeof(fit_results));
+          //map fit parameters into a 3rd order polynomial
+          temp2->a[0]=temp1->a[0];
+          temp2->a[1]=temp1->a[4];
+          temp2->a[2]=temp1->a[7];
+          temp2->a[3]=temp1->a[9];
+          //fit confidence interval of the 3rd order polynomial to get bound for x (using ciDelta assuming 2 variables)
+          fitPoly3ChisqConf(p,temp2,temp1->fitVert[0]);
+          temp1->vertLBound[0]=temp2->vertLBound[0];
+          temp1->vertUBound[0]=temp2->vertUBound[0];
+          free(temp2);
+          if(print==1)
+            {
+              printf("\nAssuming minimum at zero for y,\n");
+              printFitVertex2ParPoly3(d,p,temp1);
+            }
+          free(temp1);
+        }
+    }
+		
 
 	
 	if((p->plotData==1)&&(p->verbose<1))
