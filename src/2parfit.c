@@ -63,13 +63,21 @@ void fit2ParChisqConf(const parameters * p, fit_results * fr)
 
 void printFitVertex2Par(const data * d, const parameters * p, const fit_results * fr)
 {
-  if(fr->a[0]>=0)
-    printf("Minimum in x direction");
-  else
-    printf("Maximum in x direction");
+  //use determinant of Hessian matrix to test for local maxima,minima,or saddle point
+  long double hdet = 4*fr->a[0]*fr->a[1] - fr->a[2]*fr->a[2];
+
+  if(hdet > 0){
+    if(fr->a[0]>=0)
+      printf("Local minimum");
+    else
+      printf("Local maximum");
+  }else if (hdet < 0){
+    printf("Saddle point");
+  }
+  
   if(fr->vertBoundsFound==1)
     {
-      printf(" (with %s confidence interval), ",p->ciSigmaDesc);
+      printf(" (with %s confidence interval) at:\n",p->ciSigmaDesc);
       //these values were calculated at long double precision, 
       //check if they are the same to within float precision
       if ((float)(fr->fitVert[0]-fr->vertLBound[0])==(float)(fr->vertUBound[0]-fr->fitVert[0]))
@@ -79,16 +87,10 @@ void printFitVertex2Par(const data * d, const parameters * p, const fit_results 
     }
   else
     {
-      printf(", x0 = %LE\n",fr->fitVert[0]);
+      printf(" at:\nx0 = %LE\n",fr->fitVert[0]);
     }
-
-  if(fr->a[1]>=0)
-    printf("Minimum in y direction");
-  else
-    printf("Maximum in y direction");
   if(fr->vertBoundsFound==1)
     {
-      printf(" (with %s confidence interval), ",p->ciSigmaDesc);
       if ((float)(fr->fitVert[1]-fr->vertLBound[1])==(float)(fr->vertUBound[1]-fr->fitVert[1]))
         printf("y0 = %LE +/- %LE\n",fr->fitVert[1],fr->vertUBound[1]-fr->fitVert[1]);
       else
@@ -96,7 +98,7 @@ void printFitVertex2Par(const data * d, const parameters * p, const fit_results 
     }
   else
     {
-      printf(", y0 = %LE\n",fr->fitVert[1]);
+      printf("y0 = %LE\n",fr->fitVert[1]);
     }
   
   printf("\nf(x0,y0) = %LE\n",fr->vertVal);
@@ -136,6 +138,40 @@ void print2Par(const data * d, const parameters * p, const fit_results * fr)
   printf("\n");
   
   printFitVertex2Par(d,p,fr);
+
+  if((p->findMinGridPoint == 1)||(p->findMaxGridPoint == 1)){
+    printf("\n");
+    if(p->findMinGridPoint == 1){
+      long double currentVal;
+      long double minVal = BIG_NUMBER;
+      int minPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = eval2Par(d->x[0][i],d->x[1][i],fr);
+        if(currentVal < minVal){
+          minVal = currentVal;
+          minPt = i;
+        }
+      }
+      if(minPt >= 0){
+        printf("Grid point corresponding to the lowest value (%LE) of the fitted function is at [ %0.3LE %0.3LE ].\n",minVal,d->x[0][minPt],d->x[1][minPt]);
+      }
+    }
+    if(p->findMaxGridPoint == 1){
+      long double currentVal;
+      long double maxVal = -1.0*BIG_NUMBER;
+      int maxPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = eval2Par(d->x[0][i],d->x[1][i],fr);
+        if(currentVal > maxVal){
+          maxVal = currentVal;
+          maxPt = i;
+        }
+      }
+      if(maxPt >= 0){
+        printf("Grid point corresponding to the highest value (%LE) of the fitted function is at [ %0.3LE %0.3LE ].\n",maxVal,d->x[0][maxPt],d->x[1][maxPt]);
+      }
+    }
+  }
   
 }
 

@@ -18,7 +18,7 @@
 typedef struct
 {
   char filename[256];//name of the data file
-  char fitType[256];//the type of fit (linear,parabola,etc)
+  char fitType[128];//the type of fit (linear,parabola,etc)
   long double fitOpt;//fit option value (eg. delta for Deming regression) 
   char dataType[256];//the type of data provided (regular, chisq values, etc.)
   long double ciDelta;//delta value for confidence interval calculation
@@ -26,6 +26,8 @@ typedef struct
   int plotData;//0=don't plot, 1=plot
   char plotMode[256];//the plotting style to be used
   int plotCI;//0=don't plot confidence interval, 1=plot it
+  int ignorePar[POWSIZE]; //flags to ignore data corresponding to specific parameters (x,y,z) (0=don't ignore,1=ignore,2=slice at specified value)
+  long double sliceVal[POWSIZE]; //value to slice grid at for each parameter, if ignorePar==2 
   int numVar;
   long double ulimit[POWSIZE],llimit[POWSIZE];//upper and lower limits for variable values
   long double dllimit,dulimit;//upper and lower limits for data values
@@ -38,6 +40,7 @@ typedef struct
   int forceZeroX,forceZeroY,forceZeroZ;//whether or not to attempt forcing the fitted minimum to zero for x,y,z
   int numCIEvalPts; //number of points to evaluate the confidence interval bounds at (where applicable)
   long double CIEvalPts[100]; //array of x values at which to evaluate the confidence interval at
+  int findMinGridPoint,findMaxGridPoint;
 }parameters;
 
 typedef struct

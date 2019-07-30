@@ -193,37 +193,42 @@ void printPoly4(const data * d, const parameters * p, const fit_results * fr)
   printf("\n");
   
   printf("y-intercept = %LE\n",evalPoly4(0.0,fr));
-  /*if(strcmp(p->dataType,"chisq")==0)
-    if((fr->fitVert[0]<0.)||(fr->fitVert[1]<0.))
-      printf("1-sigma bound in x assuming minimum at zero = %LE\n",evalPoly3X(evalPoly3(0.0,fr)+p->ciDelta,fr,0.0,1));
-  printf("\n");
-
-  //check for NaN
-  if((fr->fitVert[0]==fr->fitVert[0])&&(fr->fitVert[1]==fr->fitVert[1]))
-  	{
-    	printf("Critical points at x = [ %LE %LE ]\n",fr->fitVert[0],fr->fitVert[1]);
-    	printf("At critical points, y = [ %LE %LE ]\n",evalPoly3(fr->fitVert[0],fr),evalPoly4(fr->fitVert[1],fr));
-    	//print confidence bounds
-    	if((strcmp(p->dataType,"chisq")==0)&&(fr->vertBoundsFound==1))
-    		{
-					if(evalPoly4(fr->fitVert[0],fr)<evalPoly4(fr->fitVert[1],fr))
-						{
-							if((float)(fr->vertUBound[0]-fr->fitVert[0])==(float)(fr->fitVert[0]-fr->vertLBound[0]))
-								printf("Local minimum (with %s confidence interval): x = %LE +/- %LE\n",p->ciSigmaDesc, fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
-							else
-								printf("Local minimum (with %s confidence interval): x = %LE + %LE - %LE\n",p->ciSigmaDesc,fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0],fr->fitVert[0]-fr->vertLBound[0]);
-						}
-					else
-						{
-							if((float)(fr->vertUBound[0]-fr->fitVert[1])==(float)(fr->fitVert[1]-fr->vertLBound[0]))
-								printf("Local minimum (with %s confidence interval): x = %LE +/- %LE\n",p->ciSigmaDesc,fr->fitVert[1],fr->vertUBound[0]-fr->fitVert[1]);
-							else
-								printf("Local minimum with (%s confidence interval): x = %LE + %LE - %LE\n",p->ciSigmaDesc,fr->fitVert[1],fr->vertUBound[0]-fr->fitVert[1],fr->fitVert[1]-fr->vertLBound[0]);
-						}
-				}
+  
+  if((p->findMinGridPoint == 1)||(p->findMaxGridPoint == 1)){
+    printf("\n");
+		int i;
+    if(p->findMinGridPoint == 1){
+      long double currentVal;
+      long double minVal = BIG_NUMBER;
+      int minPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = evalPoly4(d->x[0][i],fr);
+        if(currentVal < minVal){
+          minVal = currentVal;
+          minPt = i;
+        }
+      }
+      if(minPt >= 0){
+        printf("Grid point corresponding to the lowest value (%LE) of the fitted function is at [ %0.3LE ].\n",minVal,d->x[0][minPt]);
+      }
     }
-  else
-    printf("Fit function is monotonic (no critical points).\n");*/
+    if(p->findMaxGridPoint == 1){
+      long double currentVal;
+      long double maxVal = -1.0*BIG_NUMBER;
+      int maxPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = evalPoly4(d->x[0][i],fr);
+        if(currentVal > maxVal){
+          maxVal = currentVal;
+          maxPt = i;
+        }
+      }
+      if(maxPt >= 0){
+        printf("Grid point corresponding to the highest value (%LE) of the fitted function is at [ %0.3LE ].\n",maxVal,d->x[0][maxPt]);
+      }
+    }
+  }
+
 }
 
 

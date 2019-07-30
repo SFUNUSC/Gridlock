@@ -186,7 +186,7 @@ void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr
   //print local minimum and confidence bounds (if necessary)
 	if((strcmp(p->dataType,"chisq")==0)&&(fr->vertBoundsFound==1))
 		{
-      printf("Local minimum with %s confidence interval:\n",p->ciSigmaDesc);
+      printf("Local minimum (with %s confidence interval) at:\n",p->ciSigmaDesc);
 			if((float)(fr->vertUBound[0]-fr->fitVert[0])==(float)(fr->fitVert[0]-fr->vertLBound[0]))
 				printf("x = %LE +/- %LE\n",fr->fitVert[0],fr->vertUBound[0]-fr->fitVert[0]);
 			else
@@ -198,9 +198,44 @@ void print2ParPoly3(const data * d, const parameters * p, const fit_results * fr
 		}
 	else
     {
-      printf("Local minimum:\n");
-      printf("x = %LE, y = %LE\n",fr->fitVert[0],fr->fitVert[1]);
+      printf("Local minimum at:\n");
+      printf("x = %LE\ny = %LE\n",fr->fitVert[0],fr->fitVert[1]);
     }
+
+  
+  if((p->findMinGridPoint == 1)||(p->findMaxGridPoint == 1)){
+    printf("\n");
+    if(p->findMinGridPoint == 1){
+      long double currentVal;
+      long double minVal = BIG_NUMBER;
+      int minPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = eval2ParPoly3(d->x[0][i],d->x[1][i],fr);
+        if(currentVal < minVal){
+          minVal = currentVal;
+          minPt = i;
+        }
+      }
+      if(minPt >= 0){
+        printf("Grid point corresponding to the lowest value (%LE) of the fitted function is at [ %0.3LE %0.3LE ].\n",minVal,d->x[0][minPt],d->x[1][minPt]);
+      }
+    }
+    if(p->findMaxGridPoint == 1){
+      long double currentVal;
+      long double maxVal = -1.0*BIG_NUMBER;
+      int maxPt = -1;
+      for(i=0;i<d->lines;i++){
+        currentVal = eval2ParPoly3(d->x[0][i],d->x[1][i],fr);
+        if(currentVal > maxVal){
+          maxVal = currentVal;
+          maxPt = i;
+        }
+      }
+      if(maxPt >= 0){
+        printf("Grid point corresponding to the highest value (%LE) of the fitted function is at [ %0.3LE %0.3LE ].\n",maxVal,d->x[0][maxPt],d->x[1][maxPt]);
+      }
+    }
+  }
 		
     
 }
